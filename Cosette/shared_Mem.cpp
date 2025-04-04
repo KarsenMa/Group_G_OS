@@ -9,10 +9,17 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+#include "shared_Mem.h"
 
 
-void mem_setup(){
-    const char *name = "";
+void shared_Mem::mem_setup(){
+    const char *name = "sharedMemory";
+    pthread_mutex_t mutex;
+    sem_t semaphore;
+
     int oflag = O_CREAT | ORDWR; // creates memory object, set to read and write
     mode_t mode  = ; // sets directory permissions of object.
 
@@ -31,7 +38,7 @@ void mem_setup(){
 
 }
 
-void mem_close(int fd, unsigned int length, const char* name){
+void shared_Mem::mem_close(int fd, unsigned int length, const char* name){
     // unallocated the memory 
     munmap(fd, length); //unmap the memory
 
