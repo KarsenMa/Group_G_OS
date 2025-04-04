@@ -38,21 +38,21 @@ int main()
         if (pid < 0)
         {
             // Alert User If Train Failed
-            cerr << "Train: " << trains[i].name << "Error" << endl;
+            cerr << trains[i].name << "Error" << endl;
             exit(EXIT_FAILURE);
         }
 
         if (pid == 0) // Execute for Each Train
         {
             // Testing Perposes Show Train Started
-            cout << "Train: " << trains[i].name << " Started" << endl;
+            cout << trains[i].name << " Started" << endl;
 
             for (const string &intersection : trains[i].route) // Simulate Travelling Through Intersections
             {
-                cout << "Train: " << trains[i].name << " At " << intersection << endl;
+                cout << trains[i].name << " At " << intersection << endl;
                 sleep(1); // Simulate Travel Time
             }
-            cout << "Train: " << trains[i].name << " Finished" << endl;
+            cout << trains[i].name << " Finished" << endl;
             exit(0); // Terminate Train
         }
         else
@@ -68,6 +68,6 @@ int main()
         waitpid(pid, nullptr, 0);
     }
 
-    cout << "All Trains Finished!" << endl;
+    cout << "All Trains Finished" << endl;
     return 0;
 }
