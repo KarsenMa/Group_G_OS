@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+// create structure to hold mutex and semaphore
 typedef struct {
     pthread_mutex_t mutex; 
     sem_t semaphore;
@@ -22,7 +23,7 @@ class shared_Mem {
     public: 
     
 
-        const char *name = "sharedMemory";
+        const char *name = "sharedMemory"; // create share memory name for future use and easy access
         void* mem_setup();
         void mem_close(void* ptr);
 };

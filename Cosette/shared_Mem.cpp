@@ -18,7 +18,7 @@
 
 
 void* shared_Mem::mem_setup(){
-  // sets directory permissions of object.
+  
 
     unsigned int length = sizeof(shared_mem_t); // size of memory object in bytes
 
@@ -27,13 +27,13 @@ void* shared_Mem::mem_setup(){
 
     int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);    // creates memory object, set to read and write
     if(shm_fd == -1){
-        perror("shm_open error");
+        perror("shm_open error"); // print out error if shared memory is not created
         return nullptr;
     }
 
-    ftruncate(shm_fd, length);
+    ftruncate(shm_fd, length); // resize the memory to the size of the shared memory structure
 
-    mem_ptr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    mem_ptr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0); // create a pointer to the memory map of the shared memory
 
     return mem_ptr;
 
