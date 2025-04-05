@@ -11,38 +11,39 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <unistd.h>
+#include <cstdio>
 
 #include "shared_Mem.h"
 
 
-void shared_Mem::mem_setup(){
-    const char *name = "sharedMemory";
-    pthread_mutex_t mutex;
-    sem_t semaphore;
+void* shared_Mem::mem_setup(){
+  // sets directory permissions of object.
 
-    int oflag = O_CREAT | ORDWR; // creates memory object, set to read and write
-    mode_t mode  = ; // sets directory permissions of object.
-
-    unsigned int length = 4096; // size of memory object in bytes
+    unsigned int length = sizeof(shared_mem_t); // size of memory object in bytes
 
     void* mem_ptr; // pointer to memory object
 
 
-    int shm_fd = shm_open(name, oflag, mode);
-    
+    int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);    // creates memory object, set to read and write
+    if(shm_fd == -1){
+        perror("shm_open error");
+        return nullptr;
+    }
+
     ftruncate(shm_fd, length);
 
-    mem_ptr = *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
+    mem_ptr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-
+    return mem_ptr;
 
 }
 
-void shared_Mem::mem_close(int fd, unsigned int length, const char* name){
+void shared_Mem::mem_close(void* ptr){
     // unallocated the memory 
-    munmap(fd, length); //unmap the memory
+
+    munmap(ptr, sizeof(shared_mem_t)); //unmap the memory
 
     shm_unlink(name); //unlink the shared memory
 
 }
-

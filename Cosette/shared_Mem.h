@@ -10,14 +10,21 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <pthread.h>
+#include <semaphore.h>
+
+typedef struct {
+    pthread_mutex_t mutex; 
+    sem_t semaphore;
+} shared_mem_t;
+
 class shared_Mem { 
     public: 
-        void mem_setup();
-        void mem_close(int fd, unsigned int length, const char* name);
+    
 
-        
-    
-    
-}
+        const char *name = "sharedMemory";
+        void* mem_setup();
+        void mem_close(void* ptr);
+};
 
 
