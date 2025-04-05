@@ -1,0 +1,1 @@
+Both text files (intersections.txt and trains.txt) have to be in the same folder as the program.
