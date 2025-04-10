@@ -14,15 +14,17 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+
+
 typedef struct {
-    pthread_mutex_t mutex; 
-    sem_t semaphore;
+    int num_mutex;
+    int num_sem;
 } shared_mem_t;
 
 class shared_Mem { 
 public:
     const char *name = "sharedMemory"; // Name for the shared memory object
-    void* mem_setup();
+    void* mem_setup(int num_mutex, int num_sem);
     void mem_close(void* ptr);
 };
 
