@@ -21,6 +21,7 @@ int main(){
 
     // TO DO: create resource allocation table
 
+
     // TO DO: count types of intersections from parsed file
     int num_mutex;
     int num_sem;
@@ -28,11 +29,16 @@ int main(){
 
 
     // create shared memory using number of intersections to set size of shared memory
+    NUM_MUTEXES = num_mutex;
+    NUM_SEMS = num_sem;
     shared_Mem mem;
     void *ptr = mem.mem_setup();
     shared_mem_t* m = (shared_mem_t*)ptr;
 
-    
+    // setup message queues
+    setupMessageQueues()
+
+
     // TO DO: implement synchronization
 
 

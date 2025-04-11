@@ -15,7 +15,6 @@
 #include <semaphore.h>
 
 
-
 typedef struct {
     int num_mutex;
     int num_sem;
