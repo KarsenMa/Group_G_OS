@@ -1,3 +1,11 @@
+/*  Group G
+    Author Name: Cosette Byte
+    Email: cosette.byte@okstate.edu
+    Date: 4/9/2025
+    Program Description: This file contains the main function which integrates all the other portions in order to synchronize
+    the processes.
+    */ 
+
 #include <iostream>
 #include <cstdlib>
 #include <fstream>
@@ -10,6 +18,21 @@
 #include "shared_Mem.h"
 #include "sync.h"
 
+// This function performs the child process functions
+// input is the train and its route
+void childProcess(string train, vector<string> route){
+    // childProcess takes path and train information
+
+    // childProcess will use message queue to acquire and release semaphore and mutex locks
+
+    
+    // childProcess follows route defined when created
+
+
+
+}
+
+
 int main(){
 
     // Parse intersections and trains files into usable format
@@ -19,24 +42,52 @@ int main(){
     parseFile("/data/intersections.txt", intersections);
     parseFile("/data/intersections.txt", trains);
 
+
+    
+    std::ofstream logFile;  // For logging
+    int simulatedTime = 0;  // For simulated time tracking
+
     // TO DO: create resource allocation table
 
 
-    // TO DO: count types of intersections from parsed file
-    int num_mutex;
-    int num_sem;
+    // count types of intersections from parsed file or from resource table
+    int num_mutex = 0;
+    int num_sem = 0;
 
-
+    for(auto iter = intersections.begin(); iter != intersections.end(); ++iter) {
+        int currentValue = std::stoi(iter->second);
+        if(currentValue > 1){ 
+            num_sem++;
+        }
+        else if(currentValue == 1){
+            num_mutex++;
+        }
+        else{
+            cerr << "invalid intersection capacity" << endl;
+        }
+    }
+    
 
     // create shared memory using number of intersections to set size of shared memory
-    NUM_MUTEXES = num_mutex;
-    NUM_SEMS = num_sem;
     shared_Mem mem;
-    void *ptr = mem.mem_setup();
+    
+    // use calculated number of intersections for mutex and semaphore to provide size for shared memory
+    void *ptr = mem.mem_setup(num_mutex, num_sem);
     shared_mem_t* m = (shared_mem_t*)ptr;
 
     // setup message queues
-    setupMessageQueues()
+    int requestQueue = 0;
+    int responseQueue = 0;
+    if(setupMessageQueues(requestQueue, responseQueue) == -1){
+        std::cerr << "Could not set up message queues.\n";
+        return; 
+    }
+    
+
+
+    // TO DO: Create child processes, (call child process function inside forking function)
+    
+    
 
 
     // TO DO: implement synchronization
