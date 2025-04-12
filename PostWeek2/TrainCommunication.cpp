@@ -24,6 +24,8 @@
 #include <iomanip>
 #include <sys/wait.h>   // Added for waitpid()
 
+#include "sync.h" // included for semaphore and mutex implementation
+
 // External file for logging
 extern std::ofstream logFile;
 
@@ -137,9 +139,15 @@ bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const
         std::cerr << "Failed to send RELEASE request: " << strerror(errno) << std::endl;
         return false;
     }
+    else {
+        // Log the release request
+        releaseIntersection(intersectionId);
+        logMessage("TRAIN" + trainId + ": Sent RELEASE request for " + intersectionId + ".");
+        return true;
+    }
     
-    logMessage("TRAIN" + trainId + ": Sent RELEASE request for " + intersectionId + ".");
-    return true;
+    // in case of unexpected errors
+    return false;
 }
 
 // Function for trains to wait for a response from the server
@@ -193,7 +201,7 @@ void simulateTrainMovement(const std::string& trainId, const std::vector<std::st
         // Wait for response from the server
         std::string respIntersection;
         int response;
-        
+        /*
         // Simplified: always wait for a GRANT (in a more complex system, you'd handle WAIT/DENY properly)
         while ((response = trainWaitForResponse(responseQueue, trainId, respIntersection)) != ResponseType::GRANT) {
             if (response == -1) {
@@ -204,6 +212,27 @@ void simulateTrainMovement(const std::string& trainId, const std::vector<std::st
             logMessage("TRAIN" + trainId + ": Waiting for " + intersection + "...");
             sleep(1);
             simulatedTime++; // Update simulated time
+        }
+            */
+        // WAIT/DENY Handling
+        while ((response = trainWaitForResponse(responseQueue, trainId, respIntersection)) != ResponseType::GRANT) {
+            if(resposne == ResponseType::WAIT) {
+                // If WAIT, log and continue waiting
+                logMessage("TRAIN" + trainId + ": Waiting for " + intersection + "...");
+                sleep(1);
+                simulatedTime++; // Update simulated time
+            }
+            else if (response == ResponseType::DENY) {
+                // If DENY, log and exit
+                logMessage("TRAIN" + trainId + ": DENIED access to " + intersection + ".");
+                return;
+            }
+
+            if (response == -1) {
+                std::cerr << "Train " << trainId << " failed to receive response." << std::endl;
+                return;
+            }
+
         }
         
         // Intersection granted, simulate train crossing
@@ -282,6 +311,7 @@ bool serverSendResponse(int responseQueue, const std::string& trainId,
     }
     
     if (responseType == ResponseType::GRANT) {
+
         logMessage("SERVER: " + responseTypeStr + " " + intersectionId + " to " + trainId + ".");
     } else if (responseType == ResponseType::WAIT) {
         logMessage("SERVER: " + intersectionId + " is busy. " + trainId + " added to wait queue.");
@@ -299,8 +329,16 @@ void processTrainRequests(int requestQueue, int responseQueue) {
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
         if (reqType == RequestType::ACQUIRE) {
-            // Always grant access in this simplified version
-            serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
+            if(intersectionOpen(intersectionId)){
+                lockIntersection(intersectionId);
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
+            }
+            else if(!intersectionOpen(intersectionId)){
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::WAIT);
+            }
+            else{
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::DENY);
+            }           
         }
         else if (reqType == RequestType::RELEASE) {
             // Just log it

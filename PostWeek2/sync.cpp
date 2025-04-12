@@ -15,19 +15,27 @@
 #include <sync.h>
 
 // intersectionOpen takes intersection ID reference as input performs 
-// lock if intersection is open, returns true if intersection was able to be locked
-bool intersectionOpen(string& intersectionID){
-    bool lockAcquired = false;
+// checks to see if intersection is open without changing lock status
+bool checkIntersection(string& intersectionID){
+    bool unlocked = false;
     // check if intersection is locked in shared memory
 
     // this will need to integrate with the resource allocation table in order to work.
     // (semaphore index needs to be given to specific intersection)
 
-    // update semaphore or mutex lock based on intersection ID 
-
-    return lockAcquired;
-
     
+
+    return unlocked;
+}
+
+bool lockIntersection(string& intersection_id){
+    bool locked = false;
+    
+    // check intersection type
+    // if semaphore, lock semaphore
+    // if mutex, lock mutex
+
+    return locked;
 }
 
 

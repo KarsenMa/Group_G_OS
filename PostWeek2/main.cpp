@@ -31,6 +31,7 @@ void childProcess(string train, vector<string> route, int requestQueue, int resp
 
 
 int main(){
+    pid_t serverPID = getpid(); // get server process ID 
 
     // Parse intersections and trains files into usable format
     unordered_map<string, vector<string>> intersections;
@@ -69,7 +70,7 @@ int main(){
 
     // use calculated number of intersections for mutex and semaphore to provide size for shared memory
     void *ptr = mem.mem_setup(num_mutex, num_sem);
-    shared_mem_t* m = (shared_mem_t*)ptr;
+    // shared_mem_t* m = (shared_mem_t*)ptr;
 
     // setup message queues
     int requestQueue = 0;
@@ -79,20 +80,34 @@ int main(){
         return; 
     }
     
+    // TO DO: create resource allocation table
+
+    // TO DO: run process forking code to create child processes for trains
 
 
-    // TO DO: Create child processes, (call child process function inside forking function)
-    
-    
-    // TO DO: implement server side message queue stuff
-    if(getpid != 0) { // if the process is the parent process, run the server side
+    if(getpid() != 0) { // if the process is the parent process, run the server side
+        
+        while(){ // wait for the trains to be finished... how do we do this?
         processTrainRequests(requestQueue, responseQueue);
+        }
     } 
+    else if(getpid() == 0){
+        // if the process is a child process, run the train simulation
+        for(auto iter = trains.begin(); iter != trains.end(); ++iter) {
+            childProcess(iter->first, iter->second, requestQueue, responseQueue);
+        }
+    }
 
+    // cleanup message queues
+    cleanupMessageQueues(requestQueue, responseQueue);
 
-    // TO DO: implement synchronization
+    waitpid(serverPID, nullptr, 0); // wait for server process to finish
 
+    if (logFile.is_open()) {
+        logFile.close();
+    }
+    mem_close(ptr); // cleanup shared memory
 
-
-
+    std::cout << "All processes finished." << std::endl;
+    return 0;
 }
