@@ -21,6 +21,9 @@
 typedef struct {
     int num_mutex;
     vector<int> sem_values;
+    int num_trains;
+
+
 } shared_mem_t;
 
 class shared_Mem { 

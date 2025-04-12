@@ -1,0 +1,34 @@
+Start from forked train process and work backwards
+
+Clayton - 
+forkTrainProcesses appears to be a duplication of effort from Karsen's train forking.
+
+Reid - 
+testing will be a difficult process with the team working into the weekend. We may request some help from you to get this 
+completed in time. 
+
+Define parent and child process
+parent begins in main, should a separate function be declared for child process? 
+Parent process acts as the server to respond to messages. 
+Parent process models resource allocation table as a graph? 
+
+
+Trains are child process
+Child process should hold train and path information
+Child process will then use the message queue to acquire and release semaphore or mutex locks depending on the intersection
+Child process follows route defined when created.
+
+child process will need to call some kind of sync function that uses semaphore and mutex from IPC
+
+
+Resource allocation table
+Needs to dynamically size the max number of trains and intersections similar to semaphore and mutex logic
+Needs to hold the lock state of the intersection (from the mutex and semaphore values)
+Needs to hold intersection ID
+Needs to know the type of intersection (logic already included in main for this)
+Needs to hold an array of strings that is max size the capacity of the intersection 
+
+Resource allocation graph
+Needs to track resource allocation to watch for deadlock
+
+Update traincommunication to check semaphore and mutex

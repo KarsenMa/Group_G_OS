@@ -16,10 +16,9 @@
 
 #include "shared_Mem.h"
 
-/* mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
- * sem_values is the vector containing the values that each semaphore needs to be initialized at
- * size of sem_values is the number of semaphore objects needed.
- */
+// mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
+// sem_values is the vector containing the values that each semaphore needs to be initialized at
+// size of sem_values is the number of semaphore objects needed.
 void* shared_Mem::mem_setup(int num_mutex, vector<int> sem_values){
     
     int num_sem = sem_values.size(); // get number of semaphores needed
@@ -47,6 +46,7 @@ void* shared_Mem::mem_setup(int num_mutex, vector<int> sem_values){
     pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(mem_ptr + 1); 
     sem_t* semaphore = reinterpret_cast<sem_t*>(mutex + num_mutex);
 
+    // create mutex attribute to allow mutex to be accessed by multiple threads/processes
     pthread_mutexattr_t attribute;
     pthread_mutexattr_init(&attribute);
     pthread_mutexattr_setpshared(&attribute, PTHREAD_PROCESS_SHARED);
@@ -69,12 +69,19 @@ void* shared_Mem::mem_setup(int num_mutex, vector<int> sem_values){
 }
 
 
- 
+// mem_close closes and unmaps the shared memory, destroys the mutex and semaphore objects
+// input is a pointer to shared memory object that needs to be cleared.
 void shared_Mem::mem_close(void* ptr){
-    // unallocated the memory 
     
-    // to do: destroy mutex and semaphore objects
+    // destroy the mutex objects
+    for(int i = 0; i <= num_mutex; i++){ 
+        pthread_mutex_destroy(&mutex[i]);
+    }
     
+    // destroy semaphore objects
+    for(int i = 0; i <= num_mutex; i++){ 
+        sem_destroy(&semaphore[i]);
+    }
 
     munmap(ptr, sizeof(shared_mem_t)); //unmap the memory
 

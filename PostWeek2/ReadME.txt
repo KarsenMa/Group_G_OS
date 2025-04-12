@@ -15,6 +15,8 @@ Cosette:
 - shared_Mem.cpp
 - shared_Mem.h
 - main.cpp
+- sync.cpp
+- sync.h
 
 Damian: 
 - MutexThread.cpp
