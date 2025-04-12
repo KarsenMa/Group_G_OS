@@ -1,3 +1,7 @@
+Description of program and overview of functions:
+
+
+
 To compile: 
 
 
@@ -10,8 +14,7 @@ Clayton:
 Cosette: 
 - shared_Mem.cpp
 - shared_Mem.h
-- sync.cpp
-- sync.h
+- main.cpp
 
 Damian: 
 - MutexThread.cpp

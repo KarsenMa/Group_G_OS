@@ -61,3 +61,6 @@ void demoKarsenForking() {
 
     cout << "All Trains Finished\n";
 }
+
+
+// TO DO: Create function to fork process for trains that is callable from main functions

@@ -11,19 +11,22 @@
 #ifndef SHARED_MEM_H
 #define SHARED_MEM_H
 
+#include <vector> 
+
 #include <pthread.h>
 #include <semaphore.h>
 
 
+
 typedef struct {
     int num_mutex;
-    int num_sem;
+    vector<int> sem_values;
 } shared_mem_t;
 
 class shared_Mem { 
 public:
     const char *name = "sharedMemory"; // Name for the shared memory object
-    void* mem_setup(int num_mutex, int num_sem);
+    void* mem_setup(int num_mutex, vector<int> sem_values);
     void mem_close(void* ptr);
 };
 

@@ -16,9 +16,14 @@
 
 #include "shared_Mem.h"
 
-
-void* shared_Mem::mem_setup(int num_mutex, int num_sem){
+/* mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
+ * sem_values is the vector containing the values that each semaphore needs to be initialized at
+ * size of sem_values is the number of semaphore objects needed.
+ */
+void* shared_Mem::mem_setup(int num_mutex, vector<int> sem_values){
     
+    int num_sem = sem_values.size(); // get number of semaphores needed
+
     size_t length = sizeof(shared_mem_t) + num_mutex*sizeof(pthread_mutex_t) + num_sem*sizeof(sem_t); // size of memory object in bytes
 
     void* mem_ptr; // pointer to memory object
@@ -56,13 +61,15 @@ void* shared_Mem::mem_setup(int num_mutex, int num_sem){
 
     // initialize semaphores
     for(i = 0; i <= num_sem; i++){ 
-        sem_init(&semaphore[i], 1, 1);
+        sem_init(&semaphore[i], 1, sem_values[i]);
     }
 
     return mem_ptr;
 
 }
 
+
+ 
 void shared_Mem::mem_close(void* ptr){
     // unallocated the memory 
     
