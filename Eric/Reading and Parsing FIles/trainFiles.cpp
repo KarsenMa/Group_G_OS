@@ -10,16 +10,26 @@ Date: 6 April 2025
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 using namespace std;
 
-// Reads and pareses the two text files (intersections.txt and trains.txt)
-void parseFile(const string& filename, unordered_map<string, vector<string>>& data_map) {
+/*
+Reads and pareses the two text files (intersections.txt and trains.txt)
+
+Input: filename - the name of the file to read
+Output: data_map - populates reference map
+
+Map contents:
+    Key: Train name or an intersection (TrainA, TrainB... or IntersectionA, IntersectionB)
+    Value: vector of strings (intersection capacities or route intersections) 
+*/
+void parseFile(const string& filename, map<string, vector<string>>& data_map) {
     ifstream file(filename);
     if (!file.is_open()) {
         cerr << "Error opening file: " << filename << endl;
+        perror("Error details: ");
         return;
     }
 
@@ -40,8 +50,8 @@ void parseFile(const string& filename, unordered_map<string, vector<string>>& da
     }
 }
 
-// Prints and displays intersection and train data
-void displayData(const unordered_map<string, vector<string>>& data, const string& title) {
+// Prints and displays intersection and train data (optional)
+void displayData(const map<string, vector<string>>& data, const string& title) {
     cout << title << ":\n";
     for (const auto& [key, values] : data) {
         cout << key << ": ";
@@ -54,14 +64,14 @@ void displayData(const unordered_map<string, vector<string>>& data, const string
 
 int main() {
     // Stores intersection data and train data
-    unordered_map<string, vector<string>> intersections;
-    unordered_map<string, vector<string>> trains;
+    map<string, vector<string>> intersections;
+    map<string, vector<string>> trains;
 
     // Loads data from the files
     parseFile("intersections.txt", intersections);
     parseFile("trains.txt", trains);
 
-    // Displays the data from the files
+    // Displays the data from the files (optional)
     displayData(intersections, "Intersections and Capacities");
     displayData(trains, "Trains and Routes");
 
