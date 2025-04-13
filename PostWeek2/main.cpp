@@ -17,11 +17,14 @@
 #include "IPCSemaphore.h"
 #include "shared_Mem.h"
 #include "sync.h"
+#include "Resource_Allocation.h"
+
 
 // This function performs the child process functions
 // input is the train and its route
 void childProcess(string train, vector<string> route, int requestQueue, int responseQueue){
     // childProcess takes path and train information
+
     // childProcess will use message queue to acquire and release semaphore and mutex locks
 
     simulateTrainMovement(&train, &route, requestQueue, responseQueue);
@@ -72,6 +75,8 @@ int main(){
     void *ptr = mem.mem_setup(num_mutex, num_sem);
     // shared_mem_t* m = (shared_mem_t*)ptr;
 
+    
+
     // setup message queues
     int requestQueue = 0;
     int responseQueue = 0;
@@ -80,14 +85,14 @@ int main(){
         return; 
     }
     
-    // TO DO: create resource allocation table
+    // TO DO: create resource allocation graph
 
     // TO DO: run process forking code to create child processes for trains
 
 
     if(getpid() != 0) { // if the process is the parent process, run the server side
         
-        while(){ // wait for the trains to be finished... how do we do this?
+        while(){ // TO DO: wait for the trains to be finished... how do we do this?
         processTrainRequests(requestQueue, responseQueue);
         }
     } 
@@ -97,6 +102,7 @@ int main(){
             childProcess(iter->first, iter->second, requestQueue, responseQueue);
         }
     }
+
 
     // cleanup message queues
     cleanupMessageQueues(requestQueue, responseQueue);

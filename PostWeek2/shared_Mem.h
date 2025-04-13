@@ -23,6 +23,7 @@ typedef struct {
     int num_trains;
     int num_intersections;
     pthread_mutex_t rat_mutex;
+    
 } shared_mem_t;
 
 
@@ -30,7 +31,7 @@ typedef struct {
 class shared_Mem { 
 public:
     const char *name = "sharedMemory"; // Name for the shared memory object
-    void* mem_setup(int num_mutex, int num_sem,  const int sem_values[], int num_trains, int num_intersections);
+    void* mem_setup(int num_mutex, int num_sem,  const int sem_values[], int num_trains);
     void mem_close(void* ptr);
 };
 

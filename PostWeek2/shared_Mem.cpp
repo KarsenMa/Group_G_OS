@@ -20,8 +20,9 @@
 // mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
 // sem_values is the vector containing the values that each semaphore needs to be initialized at
 // size of sem_values is the number of semaphore objects needed.
-void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], int num_trains, int num_intersections)
-{
+void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], int num_trains)
+{   
+    int num_intersections = num_sem + num_mutex;
 
     size_t resourceAllocationIntersections = (num_mutex + num_sem) * sizeof(int); // get number of intersections needed
 
@@ -102,20 +103,20 @@ void shared_Mem::mem_close(void *ptr)
     int *sem_val_block = reinterpret_cast<int *>(base);
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
-
+    size_t length = sizeof(shared_mem_t) + num_mutex * sizeof(pthread_mutex_t) + num_sem * sizeof(sem_t) + num_sem * sizeof(int);
     // destroy the mutex objects
-    for (int i = 0; i <= num_mutex; i++)
+    for (int i = 0; i < num_mutex; i++)
     {
         pthread_mutex_destroy(&mutex[i]);
     }
 
     // destroy semaphore objects
-    for (int i = 0; i <= num_mutex; i++)
+    for (int i = 0; i < num_sem; i++)
     {
         sem_destroy(&semaphore[i]);
     }
 
-    munmap(ptr, sizeof(shared_mem_t)); // unmap the memory
+    munmap(ptr, length); // unmap the memory
 
     shm_unlink(name); // unlink the shared memory
 }
