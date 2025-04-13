@@ -19,12 +19,12 @@ Date:   04-09-2025
 using namespace std;
 
 // Struct to represent each intersection
-struct Intersection
-{
-    string name;
-    string type;  // "Mutex" or "Semaphore"
-    int capacity; // 1 for Mutex, >1 for Semaphore
-};
+// struct Intersection
+// {
+//     string name;
+//     string type;  // "Mutex" or "Semaphore"
+//     int capacity; // 1 for Mutex, >1 for Semaphore
+// };
 
 // Parse intersections.txt to fill a vector of Intersection structs
 void parseIntersections(const string &filename, vector<Intersection> &intersections)
