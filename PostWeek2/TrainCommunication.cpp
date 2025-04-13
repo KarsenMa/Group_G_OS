@@ -24,6 +24,9 @@
 #include <iomanip>
 #include <sys/wait.h>   // Added for waitpid()
 
+#include "TrainCommunication.h" // Added for message structure 
+
+
 #include "sync.h" // included for semaphore and mutex implementation
 
 // External file for logging
