@@ -47,6 +47,7 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
 }
 
 
+
 int main(){
     pid_t serverPID = getpid(); // get server process ID 
 
@@ -91,15 +92,23 @@ int main(){
     // use calculated number of intersections for mutex and semaphore to provide size for shared memory
     void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
     shared_mem_t* shm_ptr = (shared_mem_t*)ptr;
-
-    // Access the held matrix
+    
+    char *base = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
+    
+    int *sem_val_block = reinterpret_cast<int *>(base);
+    
+    pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
+    sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
+    // setup pointers to Intersection structs
+    Intersection *inter_ptr = reinterpret_cast<int *>(
+        reinterpret_cast<char *>(semaphore) + num_sem * sizeof(sem_t));
+    // set pointer to *held matrix
     int *held = reinterpret_cast<int *>(
-        reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t) +
-        num_sem * sizeof(int) +
-        num_mutex * sizeof(pthread_mutex_t) +
-        num_sem * sizeof(sem_t));
+        reinterpret_cast<char *>(intersection) + (num_sem + num_mutex) * sizeof(Intersection));
 
+    // TO DO: setup resource allocation table
 
+    
     // setup message queues
     int requestQueue = 0;
     int responseQueue = 0;
@@ -112,13 +121,14 @@ int main(){
 
     detectAndResolveDeadlock(ptr, intersections); // pass in shared memory pointer and vector of intersections
 
-    // TO DO: run process forking code to create child processes for trains
+    // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue); // fork the number of trains
+
 
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
 
         processTrainRequests(requestQueue, responseQueue);
-        for (auto &pid : childPIDS) {
+        for (auto &pid : childPIDS) { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
         }
         std::cout << "All trains have finished." << std::endl;
@@ -128,9 +138,10 @@ int main(){
     cleanupMessageQueues(requestQueue, responseQueue);
 
 
-    if (logFile.is_open()) {
+    if (logFile.is_open()) { // cleanup log file
         logFile.close();
     }
+
     mem_close(ptr); // cleanup shared memory
 
     std::cout << "All processes finished." << std::endl;

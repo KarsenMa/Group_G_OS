@@ -120,6 +120,23 @@ void printIntersectionStatus(shared_mem_t *shm, const vector<Intersection> &inte
     }
 }
 
+// future use function to create resource allocation table within main function
+/*
+void createResourceAllocationTable(shared_mem_t *shm, int *held, int* inter_ptr, const vector<Intersection> &intersections, unordered_map<int, vector<string>> &trainRoutes){
+    // --- Simulated usage (remove for actual use) ---
+    held[0 * num_intersections + 0] = 1; // Train0 holds IntersectionA
+    held[1 * num_intersections + 1] = 1; // Train1 holds IntersectionB
+    held[2 * num_intersections + 1] = 1; // Train2 also holds IntersectionB
+    held[3 * num_intersections + 2] = 1; // Train3 holds IntersectionC
+
+    // Display the current allocation table
+    printIntersectionStatus(shm, intersections);
+
+
+
+}
+*/
+
 int main()
 {
     // Parse config files
