@@ -5,97 +5,178 @@ Email:  kmadole@okstate.edu
 Date:   04-09-2025
 */
 
-#include "Resource_Allocation.h" //Header for ResourceAllocation
+#include "shared_Mem.h"
+#include "ResourceAlloc.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <unordered_map>
 #include <iomanip>
+#include <string>
+#include <cstring>
 
-// Initialize ResourceAllocation with pointer to shared memory
-ResourceAllocation::ResourceAllocation(shared_mem_t *mem)
+using namespace std;
+
+// Struct to represent each intersection
+struct Intersection
 {
-    this->mem = mem;
-}
+    string name;
+    string type;  // "Mutex" or "Semaphore"
+    int capacity; // 1 for Mutex, >1 for Semaphore
+};
 
-// Set intersection as held
-void ResourceAllocation::setHeld(int train_id, int intersection_id)
+// Parse intersections.txt to fill a vector of Intersection structs
+void parseIntersections(const string &filename, vector<Intersection> &intersections)
 {
-    pthread_mutex_lock(&mem->mutex);                                                  // lock mutex
-    mem->held[train_id][intersection_id] = 1;                                         // set held
-    std::cout << "Setting held[" << train_id << "][" << intersection_id << "] = 1\n"; // debug
-
-    pthread_mutex_unlock(&mem->mutex); // unlock mutex
-}
-
-// Release intersection
-void ResourceAllocation::releaseHeld(int train_id, int intersection_id)
-{
-    pthread_mutex_lock(&mem->mutex);          // lock mutex
-    mem->held[train_id][intersection_id] = 0; // release intersection
-    pthread_mutex_unlock(&mem->mutex);        // unlock mutex
-}
-
-// Set train as waiting
-void ResourceAllocation::setWaiting(int train_id, int intersection_id)
-{
-    pthread_mutex_lock(&mem->mutex);             // lock mutex
-    mem->waiting[intersection_id][train_id] = 1; // set waiting
-    pthread_mutex_unlock(&mem->mutex);           // unlock mutex
-}
-
-// Release waiting
-void ResourceAllocation::clearWaiting(int train_id, int intersection_id)
-{
-    pthread_mutex_lock(&mem->mutex);             // lock mutex
-    mem->waiting[intersection_id][train_id] = 0; // release waiting
-    pthread_mutex_unlock(&mem->mutex);           // unlock mutex
-}
-
-// Print Resource Allocation Table
-void ResourceAllocation::printStatus()
-{
-    pthread_mutex_lock(&mem->mutex); // lock mutex
-
-    std::cout << "\n           RESOURCE ALLOCATION TABLE           \n";
-
-    // Print Held Labels
-    std::cout << "\nHeld:\n";
-    std::cout << "     ";
-    for (int i = 0; i < MAX_INTERSECTIONS; ++i)
+    ifstream file(filename);
+    string line;
+    while (getline(file, line))
     {
-        char label = 'A' + i; // Convert index to label
-        std::cout << " " << label << "  ";
+        size_t colon = line.find(':');
+        if (colon == string::npos)
+            continue;
+
+        string name = line.substr(0, colon);
+        int cap = stoi(line.substr(colon + 1));
+        string type = (cap == 1) ? "Mutex" : "Semaphore";
+        intersections.push_back({name, type, cap});
     }
-    std::cout << "\n";
-    // Print held table
-    for (int t = 1; t < MAX_TRAINS; ++t)
+}
+
+// Parse trains.txt to map train IDs to their route of intersections
+void parseTrains(const string &filename, unordered_map<int, vector<string>> &trainRoutes)
+{
+    ifstream file(filename);
+    string line;
+    while (getline(file, line))
     {
-        std::cout << "T" << std::setw(2) << t << "  ";
-        for (int i = 0; i < MAX_INTERSECTIONS; ++i)
+        size_t colon = line.find(':');
+        if (colon == string::npos)
+            continue;
+
+        string trainLabel = line.substr(0, colon); // e.g., Train0
+        int trainID = stoi(trainLabel.substr(5));  // extract '0' from "Train0"
+        string routeData = line.substr(colon + 1);
+
+        stringstream ss(routeData);
+        string intersection;
+        while (getline(ss, intersection, ','))
         {
-            std::cout << " " << std::setw(2) << mem->held[t][i] << " "; // Display status of each intersection
+            trainRoutes[trainID].push_back(intersection);
         }
-        std::cout << "\n";
     }
+}
 
-    // Print Waiting Labels
-    std::cout << "\nWaiting:\n";
-    std::cout << "     ";
-    for (int t = 1; t < MAX_TRAINS; ++t)
+// Display the resource allocation table from shared memory
+void printIntersectionStatus(shared_mem_t *shm, const vector<Intersection> &intersections)
+{
+    int *held = reinterpret_cast<int *>(
+        reinterpret_cast<char *>(shm) + sizeof(shared_mem_t) +
+        shm->num_sem * sizeof(int) +
+        shm->num_mutex * sizeof(pthread_mutex_t) +
+        shm->num_sem * sizeof(sem_t));
+
+    cout << left << setw(15) << "IntersectionID"
+         << setw(10) << "Type"
+         << setw(10) << "Capacity"
+         << setw(12) << "Lock State"
+         << "Holding Trains" << endl;
+
+    cout << string(60, '-') << endl;
+
+    for (int i = 0; i < shm->num_intersections; ++i)
     {
-        std::cout << "T" << std::setw(2) << t << " ";
-    }
-    std::cout << "\n";
-    // Print waiting table
-    for (int i = 0; i < MAX_INTERSECTIONS; ++i)
-    {
-        char label = 'A' + i;
-        std::cout << " " << label << "   ";
-        for (int t = 1; t < MAX_TRAINS; ++t)
+        string lockState = "Unlocked";
+
+        for (int t = 0; t < shm->num_trains; ++t)
         {
-            std::cout << " " << std::setw(2) << mem->waiting[i][t] << " "; // Display status of each train
+            if (held[t * shm->num_intersections + i] == 1)
+            {
+                lockState = "Locked";
+                break;
+            }
         }
-        std::cout << "\n";
+
+        cout << left << setw(15) << intersections[i].name
+             << setw(10) << intersections[i].type
+             << setw(10) << intersections[i].capacity
+             << setw(12) << lockState
+             << "[";
+
+        bool first = true;
+        for (int t = 0; t < shm->num_trains; ++t)
+        {
+            if (held[t * shm->num_intersections + i] == 1)
+            {
+                if (!first)
+                    cout << ", ";
+                cout << "Train" << t;
+                first = false;
+            }
+        }
+
+        cout << "]" << endl;
+    }
+}
+
+int main()
+{
+    // Parse config files
+    vector<Intersection> intersections;
+    unordered_map<int, vector<string>> trainRoutes;
+
+    parseIntersections("intersections.txt", intersections);
+    parseTrains("trains.txt", trainRoutes);
+
+    int num_trains = trainRoutes.size();
+    int num_intersections = intersections.size();
+
+    // Count how many mutexes and semaphores, and prepare sem_values
+    int num_mutex = 0;
+    vector<int> sem_values_vec;
+
+    for (const auto &inter : intersections)
+    {
+        if (inter.type == "Mutex")
+        {
+            num_mutex++;
+        }
+        else
+        {
+            sem_values_vec.push_back(inter.capacity);
+        }
     }
 
-    std::cout << "\n";
-    pthread_mutex_unlock(&mem->mutex); // unlock mutex
+    int num_sem = sem_values_vec.size();
+    int sem_values[num_sem];
+    for (int i = 0; i < num_sem; ++i)
+    {
+        sem_values[i] = sem_values_vec[i];
+    }
+
+    // Set up shared memory
+    shared_Mem mem;
+    void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains, num_intersections);
+    shared_mem_t *shm = reinterpret_cast<shared_mem_t *>(ptr);
+
+    // Access the held matrix
+    int *held = reinterpret_cast<int *>(
+        reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t) +
+        num_sem * sizeof(int) +
+        num_mutex * sizeof(pthread_mutex_t) +
+        num_sem * sizeof(sem_t));
+
+    // --- Simulated usage (remove for actual use) ---
+    held[0 * num_intersections + 0] = 1; // Train0 holds IntersectionA
+    held[1 * num_intersections + 1] = 1; // Train1 holds IntersectionB
+    held[2 * num_intersections + 1] = 1; // Train2 also holds IntersectionB
+    held[3 * num_intersections + 2] = 1; // Train3 holds IntersectionC
+
+    // Display the current allocation table
+    printIntersectionStatus(shm, intersections);
+
+    // Clean up
+    mem.mem_close(ptr);
+    return 0;
 }
