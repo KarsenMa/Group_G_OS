@@ -16,20 +16,22 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+typedef struct{ 
 
+}
 
 typedef struct {
-    int num_mutex;
-    vector<int> sem_values;
-    int num_trains;
-
-
+  int num_mutex;
+  int num_sem;
+  int sem_values[];
 } shared_mem_t;
+
+
 
 class shared_Mem { 
 public:
     const char *name = "sharedMemory"; // Name for the shared memory object
-    void* mem_setup(int num_mutex, vector<int> sem_values);
+    void* mem_setup(int num_mutex, int num_sem,  const int sem_values[]);
     void mem_close(void* ptr);
 };
 
