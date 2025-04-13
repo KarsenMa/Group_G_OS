@@ -329,11 +329,11 @@ void processTrainRequests(int requestQueue, int responseQueue) {
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
         if (reqType == RequestType::ACQUIRE) {
-            if(intersectionOpen(intersectionId)){
+            if(checkIntersectionLock(intersectionId)){
                 lockIntersection(intersectionId);
                 serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
             }
-            else if(!intersectionOpen(intersectionId)){
+            else if(!checkIntersectionLock(intersectionId)){
                 serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::WAIT);
             }
             else{

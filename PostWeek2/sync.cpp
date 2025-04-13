@@ -16,9 +16,13 @@
 
 // intersectionOpen takes intersection ID reference as input performs 
 // checks to see if intersection is open without changing lock status
-bool checkIntersection(string& intersectionID){
+bool checkIntersectionLock(string& intersectionID, string& trainID){
     bool unlocked = false;
     // check if intersection is locked in shared memory
+    
+
+    // check if train already exists in intersection
+
 
     // this will need to integrate with the resource allocation table in order to work.
     // (semaphore index needs to be given to specific intersection)
@@ -28,12 +32,13 @@ bool checkIntersection(string& intersectionID){
     return unlocked;
 }
 
-bool lockIntersection(string& intersection_id){
+bool lockIntersection(string& intersectionID, string& trainID){
     bool locked = false;
     
     // check intersection type
     // if semaphore, lock semaphore
     // if mutex, lock mutex
+    // add train to intersection in resource allocation table
 
     return locked;
 }
@@ -43,8 +48,17 @@ bool lockIntersection(string& intersection_id){
 // unlocks semaphore or mutex
 // returns if lock was able to be released.
 
-bool releaseIntersection(string& intersection_id){
+bool releaseIntersection(string& intersectionID, string& trainID){
+
     bool released = false;
+
+    if(!checkIntersectionLock(intersectionID, trainID)){
+        released = true;
+
+        // remove train ID from intersection in resource allocation table
+
+        return released;
+    }
     
     // check intersection type
 
