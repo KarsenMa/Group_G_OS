@@ -5,28 +5,29 @@ Email:  kmadole@okstate.edu
 Date:   04-09-2025
 */
 
-// Ensure this file is only included once
-#ifndef Resource_Allocation_h
-#define Resource_Allocation_h
+#ifndef RESOURCE_ALLOC_H
+#define RESOURCE_ALLOC_H
 
-// include shared memory from Cosette
 #include "shared_Mem.h"
+#include <string>
+#include <vector>
+#include <unordered_map>
 
-class ResourceAllocation
+// Struct to represent an intersection (name, type, capacity)
+struct Intersection
 {
-public:
-    // Constructor for pointer to shared memory
-    ResourceAllocation(shared_mem_t *mem);
-
-    void setHeld(int train_id, int intersection_id);      // Held
-    void releaseHeld(int train_id, int intersection_id);  // Released
-    void setWaiting(int train_id, int intersection_id);   // Waiting
-    void clearWaiting(int train_id, int intersection_id); // Cleared
-    void printStatus();                                   // Print Resource Allocation Table
-
-private:
-    // Pointer to shared memory
-    shared_mem_t *mem;
+    std::string name;
+    std::string type; // "Mutex" or "Semaphore"
+    int capacity;
 };
+
+// Parses intersections.txt and fills the vector of Intersection structs
+void parseIntersections(const std::string &filename, std::vector<Intersection> &intersections);
+
+// Parses trains.txt and maps train IDs to their ordered list of intersections
+void parseTrains(const std::string &filename, std::unordered_map<int, std::vector<std::string>> &trainRoutes);
+
+// Displays the current Resource Allocation Table using shared memory
+void printIntersectionStatus(shared_mem_t *shm, const std::vector<Intersection> &intersections);
 
 #endif
