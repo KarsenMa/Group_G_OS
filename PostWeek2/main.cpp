@@ -12,9 +12,6 @@
 #include <unordered_map>
 #include <vector>
 
-
-#include "MutexThread.h"
-#include "IPCSemaphore.h"
 #include "shared_Mem.h"
 #include "sync.h"
 #include "Resource_Allocation.h"
@@ -24,12 +21,29 @@
 // input is the train and its route
 void childProcess(string train, vector<string> route, int requestQueue, int responseQueue){
     // childProcess takes path and train information
-
     // childProcess will use message queue to acquire and release semaphore and mutex locks
 
     simulateTrainMovement(&train, &route, requestQueue, responseQueue);
+}
 
+vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue){
+    vector<pid_t> childPIDS;
+    for(auto iter : trains) { 
+        pid_t pid = fork();
 
+        if(pid == -1) {
+            cerr << "Fork failed" << endl;
+            exit(1);
+        }
+        else if(pid == 0) { // Child process
+            childProcess(iter.first, iter.second, requestQueue, responseQueue);
+            exit(0); // Child process exits after running
+        }
+        else { // Parent process
+            childPIDS.push_back(pid); // Store child PID
+        }
+    } 
+    return childPIDS;  
 }
 
 
@@ -37,10 +51,10 @@ int main(){
     pid_t serverPID = getpid(); // get server process ID 
 
     // Parse intersections and trains files into usable format
-    unordered_map<string, vector<string>> intersections;
+    vector<Intersection> intersections;
     unordered_map<string, vector<string>> trains;
 
-    parseFile("/data/intersections.txt", intersections);
+    parseIntersections("/data/intersections.txt", intersections);
     parseFile("/data/intersections.txt", trains);
 
 
@@ -53,11 +67,14 @@ int main(){
     // count types of intersections from parsed file or from resource table
     int num_mutex = 0;
     int num_sem = 0;
+    int num_trains = trains.size(); // number of trains
+    int sem_values[intersections.size()]; // array to hold semaphore values
 
     for(auto iter = intersections.begin(); iter != intersections.end(); ++iter) {
-        int currentValue = std::stoi(iter->second[0]); // convert string to integer
+        int currentValue = iter->capacity; // convert string to integer
         if(currentValue > 1){ 
             num_sem++;
+            sem_values[num_sem - 1] = currentValue; // store semaphore value
         }
         else if(currentValue == 1){
             num_mutex++;
@@ -72,10 +89,16 @@ int main(){
     shared_Mem mem;
 
     // use calculated number of intersections for mutex and semaphore to provide size for shared memory
-    void *ptr = mem.mem_setup(num_mutex, num_sem);
-    // shared_mem_t* m = (shared_mem_t*)ptr;
+    void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
+    shared_mem_t* shm_ptr = (shared_mem_t*)ptr;
 
-    
+    // Access the held matrix
+    int *held = reinterpret_cast<int *>(
+        reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t) +
+        num_sem * sizeof(int) +
+        num_mutex * sizeof(pthread_mutex_t) +
+        num_sem * sizeof(sem_t));
+
 
     // setup message queues
     int requestQueue = 0;
@@ -87,27 +110,23 @@ int main(){
     
     // TO DO: create resource allocation graph
 
+    detectAndResolveDeadlock(ptr, intersections); // pass in shared memory pointer and vector of intersections
+
     // TO DO: run process forking code to create child processes for trains
+    vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue); // fork the number of trains
 
+    if(getpid() == serverPID) { // if the process is the parent process, run the server side
 
-    if(getpid() != 0) { // if the process is the parent process, run the server side
-        
-        while(){ // TO DO: wait for the trains to be finished... how do we do this?
         processTrainRequests(requestQueue, responseQueue);
+        for (auto &pid : childPIDS) {
+            waitpid(pid, nullptr, 0);
         }
+        std::cout << "All trains have finished." << std::endl;
     } 
-    else if(getpid() == 0){
-        // if the process is a child process, run the train simulation
-        for(auto iter = trains.begin(); iter != trains.end(); ++iter) {
-            childProcess(iter->first, iter->second, requestQueue, responseQueue);
-        }
-    }
-
-
+    
     // cleanup message queues
     cleanupMessageQueues(requestQueue, responseQueue);
 
-    waitpid(serverPID, nullptr, 0); // wait for server process to finish
 
     if (logFile.is_open()) {
         logFile.close();
