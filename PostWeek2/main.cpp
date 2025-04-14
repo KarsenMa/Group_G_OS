@@ -11,6 +11,9 @@
 #include <fstream>
 #include <unordered_map>
 #include <vector>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "shared_Mem.h"
 #include "sync.h"
@@ -100,21 +103,21 @@ int main(){
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
     // setup pointers to Intersection structs
-    Intersection *inter_ptr = reinterpret_cast<int *>(
+    Intersection *inter_ptr = reinterpret_cast<Intersection *>(
         reinterpret_cast<char *>(semaphore) + num_sem * sizeof(sem_t));
     // set pointer to *held matrix
     int *held = reinterpret_cast<int *>(
-        reinterpret_cast<char *>(intersection) + (num_sem + num_mutex) * sizeof(Intersection));
+        reinterpret_cast<char *>(inter_ptr) + (num_sem + num_mutex) * sizeof(Intersection));
 
     // TO DO: setup resource allocation table
 
-    
+
     // setup message queues
     int requestQueue = 0;
     int responseQueue = 0;
     if(setupMessageQueues(requestQueue, responseQueue) == -1){
         std::cerr << "Could not set up message queues.\n";
-        return; 
+        return -1; 
     }
     
     // TO DO: create resource allocation graph
