@@ -22,7 +22,7 @@ struct Intersection
     union{
         int sem_index;
         int mutex_index;
-    }
+    };
     int capacity;
 };
 

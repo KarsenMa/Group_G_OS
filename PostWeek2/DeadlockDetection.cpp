@@ -10,6 +10,7 @@
 #include "shared_Mem.h"
 #include "Resource_Allocation.h"
 #include <iostream>
+#include <stdexcept>
 #include <fstream>
 #include <string>
 #include <vector>

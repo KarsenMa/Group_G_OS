@@ -24,10 +24,7 @@
 #include <iomanip>
 #include <sys/wait.h>   // Added for waitpid()
 
-#include "TrainCommunication.h" // Added for message structure 
-
-
-#include "sync.h" // included for semaphore and mutex implementation
+#include "TrainCommunication.h" // included for semaphore and mutex implementation
 
 // External file for logging
 extern std::ofstream logFile;
@@ -35,6 +32,7 @@ extern std::ofstream logFile;
 // We define these in main.cpp (so only one definition in the whole project):
 extern int simulatedTime; 
 
+/*
 // Message structures for IPC
 struct RequestMsg {
     long mtype;                 // Message type (1 for ACQUIRE, 2 for RELEASE)
@@ -60,7 +58,7 @@ namespace RequestType {
     const int ACQUIRE = 1;
     const int RELEASE = 2;
 }
-
+*/
 // Function to get formatted timestamp
 std::string getTimestamp() {
     int hours = simulatedTime / 3600;
@@ -130,7 +128,7 @@ bool trainSendAcquireRequest(int requestQueue, const std::string& trainId, const
 }
 
 // Function to send a RELEASE request
-bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const std::string& intersectionId, 
+bool trainSendReleaseRequestExtended(int requestQueue, std::string trainId, std::string intersectionId, 
     shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held) {
     RequestMsg msg;
     msg.mtype = RequestType::RELEASE;
@@ -145,7 +143,7 @@ bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const
     }
     else {
         // Log the release request
-        releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, train_id, held);
+        releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
         logMessage("TRAIN" + trainId + ": Sent RELEASE request for " + intersectionId + ".");
         return true;
     }
@@ -249,7 +247,7 @@ void simulateTrainMovement(const std::string& trainId, const std::vector<std::st
         simulatedTime += crossingTime; // Update simulated time
         
         // Release the intersection
-        if (!trainSendReleaseRequest(requestQueue, trainId, intersection, shm, inter_ptr, sem, mutex, held)) {
+        if (!trainSendReleaseRequestExtended(requestQueue, trainId, intersection, shm, inter_ptr, sem, mutex, held)) {
             std::cerr << "Train " << trainId << " failed to send RELEASE request." << std::endl;
             return;
         }
@@ -327,24 +325,20 @@ bool serverSendResponse(int responseQueue, const std::string& trainId,
 }
 
 // Simplified server side: always grants ACQUIRE, logs RELEASE
-void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
+void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm, 
+    Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
     std::string trainId, intersectionId;
     int reqType;
-    
+
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
         if (reqType == RequestType::ACQUIRE) {
-            if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)){
-                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainID, held);
-                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
-            }
-            else{
-                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::WAIT);
-            }           
+        // For this simpler version, always grant immediately
+        serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
         }
-        else if (reqType == RequestType::RELEASE) {
-            // Just log it
-            logMessage("SERVER: " + trainId + " released " + intersectionId + ".");
+    else if (reqType == RequestType::RELEASE) {
+        // Just log it
+        logMessage("SERVER: " + trainId + " released " + intersectionId + ".");
         }
     }
 }
@@ -379,7 +373,7 @@ std::vector<pid_t> forkTrainProcesses(
 //------------------------------------------------------------------------------
 // A small "Week 1 test" function that sets everything up and demonstrates it
 //------------------------------------------------------------------------------
-
+/*
 void runClaytonWeek1Test() 
 {
     std::cout << "\n--- Demonstrating Clayton’s Train Communication logic ---\n";
@@ -438,3 +432,4 @@ void runClaytonWeek1Test()
         std::cout << "--- End of Clayton’s Train Communication demo ---\n";
     }
 }
+*/

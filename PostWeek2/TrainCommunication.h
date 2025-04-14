@@ -12,6 +12,11 @@ Date: 04-13-2025
 #include <vector>
 #include <fstream>
 
+#include <semaphore.h>
+#include <pthread.h>
+#include "sync.h" // included for semaphore and mutex implementation
+#include "shared_Mem.h" // included for shared memory implementation
+
 // Message structures for IPC
 struct RequestMsg {
     long mtype;                  // Message type

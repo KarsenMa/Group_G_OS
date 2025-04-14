@@ -6,7 +6,7 @@ Date:   04-09-2025
 */
 
 #include "shared_Mem.h"
-#include "ResourceAlloc.h"
+#include "Resource_Allocation.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -137,7 +137,7 @@ void createResourceAllocationTable(shared_mem_t *shm, int *held, int* inter_ptr,
 
 }
 */
-
+/*
 int main()
 {
     // Parse config files
@@ -175,7 +175,7 @@ int main()
 
     // Set up shared memory
     shared_Mem mem;
-    void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains, num_intersections);
+    void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
     shared_mem_t *shm = reinterpret_cast<shared_mem_t *>(ptr);
 
     // Access the held matrix
@@ -198,3 +198,4 @@ int main()
     mem.mem_close(ptr);
     return 0;
 }
+*/
