@@ -65,6 +65,14 @@ int main(){
     std::ofstream logFile;  // For logging
     int simulatedTime = 0;  // For simulated time tracking
 
+    // initializes the log file and opens the "simulation.log" file for logMessage in TrainCommunication.cpp to write in
+    // simulation.log must be open for TrainCommunication.cpp to be able to write in
+    logFile.open("data/simulation.log", std::ios::out);
+    if (!logFile.is_open()) {
+        std::cerr << "Failed to open simulation.log for writing." << std::endl;
+        return -1;
+    }
+
     // TO DO: create resource allocation table
 
 
@@ -88,6 +96,8 @@ int main(){
         }
     }
     
+    // logs to simulation.log when the system is first initalized
+    logFile << "[00:00:00] SERVER: Initialized intersections:\n";
 
     // create shared memory using number of intersections to set size of shared memory
     shared_Mem mem;
@@ -135,6 +145,7 @@ int main(){
             waitpid(pid, nullptr, 0);
         }
         std::cout << "All trains have finished." << std::endl;
+        logFile << "All trains have finished." << std::endl;
     } 
     
     // cleanup message queues
@@ -148,5 +159,6 @@ int main(){
     mem_close(ptr); // cleanup shared memory
 
     std::cout << "All processes finished." << std::endl;
+    logFile << "All processes finished." << std::endl;
     return 0;
 }
