@@ -2,8 +2,10 @@
     Author Name: Cosette Byte
     Email: cosette.byte@okstate.edu
     Date: 4/9/2025
-    Program Description: This file contains the main function which integrates all the other portions in order to synchronize
-    the processes.
+    Program Description: This file contains the main function for the train simulation.
+    It uses message queues to communicate between the server and child processes.
+    The server process forks child processes for each train and uses shared memory
+    to store the state of the intersections and trains. 
     */ 
 
 #include <iostream>
@@ -18,18 +20,28 @@
 #include "shared_Mem.h"
 #include "sync.h"
 #include "Resource_Allocation.h"
+#include "TrainCommunication.h"
+#include "DeadlockDetection.h"
+
 
 
 // This function performs the child process functions
-// input is the train and its route
-void childProcess(string train, vector<string> route, int requestQueue, int responseQueue){
+// input: train name
+// input: vector of strings for the route
+// input: requestQueue and responseQueue for message queue
+void childProcess(string train, vector<string> route, int requestQueue, int responseQueue, 
+                  shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex) {
     // childProcess takes path and train information
     // childProcess will use message queue to acquire and release semaphore and mutex locks
-
-    simulateTrainMovement(&train, &route, requestQueue, responseQueue);
+    simulateTrainMovement(&train, &route, requestQueue, responseQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
 
-vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue){
+// This function forks the child processes for each train
+// input: unordered map of trains and their routes
+// input: requestQueue and responseQueue for message queue
+// output: vector of child PIDs
+vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue, 
+                          shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex) {
     vector<pid_t> childPIDS;
     for(auto iter : trains) { 
         pid_t pid = fork();
@@ -39,7 +51,8 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
             exit(1);
         }
         else if(pid == 0) { // Child process
-            childProcess(iter.first, iter.second, requestQueue, responseQueue);
+            childProcess(iter.first, iter.second, requestQueue, responseQueue, 
+                         shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
         else { // Parent process
@@ -72,8 +85,6 @@ int main(){
         std::cerr << "Failed to open simulation.log for writing." << std::endl;
         return -1;
     }
-
-    // TO DO: create resource allocation table
 
 
     // count types of intersections from parsed file or from resource table
@@ -121,7 +132,7 @@ int main(){
     int *held = reinterpret_cast<int *>(
         reinterpret_cast<char *>(inter_ptr) + (num_sem + num_mutex) * sizeof(Intersection));
 
-    // TO DO: setup resource allocation table
+    // setup intersection data in shared memory
     int count_sem = 0;
     int count_mutex = 0;
 
@@ -160,7 +171,7 @@ int main(){
 
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
 
-        processTrainRequests(requestQueue, responseQueue);
+        processTrainRequests(requestQueue, responseQueue, shm, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS) { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
         }

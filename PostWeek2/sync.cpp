@@ -14,9 +14,12 @@
 
 #include "Resource_Allocation.h"
 #include "shared_Mem.h"
-
 #include "sync.h"
 
+
+// findIntersectionbyID searches shared memory for a specific intersection based on its ID
+// input: intersection ID reference, intersection pointer, and number of intersections
+// output: returns a pointer to the intersection if found, otherwise nullptr
 Intersection* findIntersectionbyID(string& intersectionID, Intersection *inter_ptr, int num_intersections){
     
     for(int i = 0; i < num_intersections; i++){
@@ -27,6 +30,9 @@ Intersection* findIntersectionbyID(string& intersectionID, Intersection *inter_p
     return nullptr; // intersection not found
 }
 
+// checkIntersectionType checks if the intersection is a mutex or semaphore
+// input: intersection ID reference, intersection pointer, and number of intersections
+// output: returns the type of intersection (semaphore or mutex)
 string checkIntersectionType(string& intersectionID, Intersection *inter_ptr, int num_intersections){
     string type = "";
     // check if intersection is a mutex or semaphore
@@ -69,15 +75,17 @@ bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, string& i
     return unlocked;
 }
 
-
-bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, int trainID, int *held){
+// checkIntersectionLockbyTrain checks if the intersection is locked by a specific train
+// input: shared memory pointer, intersection pointer, intersection ID, train ID, and held matrix pointer
+// returns true if the intersection is locked by the train
+bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, string& trainID, int *held){
     bool locked = false;
-
+    int trainIDNum = std::stoi(trainID.substr(5)); // convert string to integer
     // get intersection in shared memory
     Intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
     // check if intersection is locked in shared memory
     
-    if(held[trainID * shm->num_intersections + intersection->index] == 1){
+    if(held[trainIDNum * shm->num_intersections + intersection->index] == 1){
         locked = true;
     }
     else{
@@ -87,11 +95,17 @@ bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, st
     return locked;
 }
 
+// LockIntersection locks an intersection based on the type of lock
+// (semaphore or mutex) and adds the train ID to the held matrix
+// input: shared memory pointer, intersection pointer, semaphore pointer, mutex pointer,
+// intersection ID, train ID, and held matrix pointer
+// returns true if lock was able to be acquired
 bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, int trainID, int *held){
     bool locked = false;
+    int trainIDNum = std::stoi(trainID.substr(5)); // convert string to integer
 
     intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
-    locked = checkIntersectionLock(shm, inter_ptr, intersectionID, trainID, held);
+    locked = checkIntersectionFull(shm, inter_ptr, intersectionID, held);
     
     // check if intersection is locked
     if(locked){
@@ -109,7 +123,7 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
             sem_wait(sem[intersection->sem_index]);
 
             // add train ID to intersection in resource allocation table
-            held[trainID * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+            held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
             locked = true;
         }
 
@@ -118,7 +132,7 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
             pthread_mutex_lock(&mutex[intersection->mutex_index]);
 
             // add train ID to intersection in resource allocation table
-            held[trainID * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+            held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
             locked = true;
         }
 
@@ -137,15 +151,26 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
 // unlocks semaphore or mutex
 // returns if lock was able to be released.
 
-bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, int trainID, int *held){
-
+bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, string& trainID, int *held){
+    int trainIDNum = std::stoi(trainID.substr(5)); // convert string to integer
     bool released = false;
 
     if(!checkIntersectionLockbyTrain(shm, inter_ptr, intersectionID, trainID, held)){
         released = true; // set release flag to true
-        
+        string type = checkIntersectionType(intersectionID, inter_ptr, shm->num_intersections);
+        // lock the intersection based on the lock type
+
+        if(type == "Semaphore"){
+            // lock semaphore
+            sem_post(sem[intersection->sem_index]);
+        }
+
+        else if(type == "Mutex"){
+            // lock mutex
+            pthread_mutex_unlock(&mutex[intersection->mutex_index]);
+        }
         // remove train ID from intersection in resource allocation table
-        held[trainID * shm->num_intersections + intersection->index] = 0; // set held matrix to 0
+        held[trainIDNum * shm->num_intersections + intersection->index] = 0; // set held matrix to 0
     }
     
     // check intersection type

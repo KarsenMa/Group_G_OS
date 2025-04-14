@@ -130,7 +130,8 @@ bool trainSendAcquireRequest(int requestQueue, const std::string& trainId, const
 }
 
 // Function to send a RELEASE request
-bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const std::string& intersectionId) {
+bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const std::string& intersectionId, 
+    shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held) {
     RequestMsg msg;
     msg.mtype = RequestType::RELEASE;
     strncpy(msg.train_id, trainId.c_str(), sizeof(msg.train_id) - 1);
@@ -144,7 +145,7 @@ bool trainSendReleaseRequest(int requestQueue, const std::string& trainId, const
     }
     else {
         // Log the release request
-        releaseIntersection(intersectionId);
+        releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, train_id, held);
         logMessage("TRAIN" + trainId + ": Sent RELEASE request for " + intersectionId + ".");
         return true;
     }
@@ -191,7 +192,8 @@ int trainWaitForResponse(int responseQueue, const std::string& trainId, std::str
 
 // Function to simulate train movement
 void simulateTrainMovement(const std::string& trainId, const std::vector<std::string>& route, 
-                           int requestQueue, int responseQueue) 
+                           int requestQueue, int responseQueue, shared_mem_t *shm,
+                           Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) 
 {
     // Iterate through each intersection in the route
     for (const auto& intersection : route) {
@@ -219,7 +221,7 @@ void simulateTrainMovement(const std::string& trainId, const std::vector<std::st
             */
         // WAIT/DENY Handling
         while ((response = trainWaitForResponse(responseQueue, trainId, respIntersection)) != ResponseType::GRANT) {
-            if(resposne == ResponseType::WAIT) {
+            if(response == ResponseType::WAIT) {
                 // If WAIT, log and continue waiting
                 logMessage("TRAIN" + trainId + ": Waiting for " + intersection + "...");
                 sleep(1);
@@ -247,7 +249,7 @@ void simulateTrainMovement(const std::string& trainId, const std::vector<std::st
         simulatedTime += crossingTime; // Update simulated time
         
         // Release the intersection
-        if (!trainSendReleaseRequest(requestQueue, trainId, intersection)) {
+        if (!trainSendReleaseRequest(requestQueue, trainId, intersection, shm, inter_ptr, sem, mutex, held)) {
             std::cerr << "Train " << trainId << " failed to send RELEASE request." << std::endl;
             return;
         }
@@ -325,22 +327,19 @@ bool serverSendResponse(int responseQueue, const std::string& trainId,
 }
 
 // Simplified server side: always grants ACQUIRE, logs RELEASE
-void processTrainRequests(int requestQueue, int responseQueue) {
+void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
     std::string trainId, intersectionId;
     int reqType;
     
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
         if (reqType == RequestType::ACQUIRE) {
-            if(checkIntersectionLock(intersectionId)){
-                lockIntersection(intersectionId);
+            if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)){
+                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainID, held);
                 serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
             }
-            else if(!checkIntersectionLock(intersectionId)){
-                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::WAIT);
-            }
             else{
-                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::DENY);
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::WAIT);
             }           
         }
         else if (reqType == RequestType::RELEASE) {
@@ -351,6 +350,7 @@ void processTrainRequests(int requestQueue, int responseQueue) {
 }
 
 // Spawns child processes for each train route
+/*
 std::vector<pid_t> forkTrainProcesses(
     const std::vector<std::pair<std::string, std::vector<std::string>>>& trainRoutes,
     int requestQueue, int responseQueue)
@@ -374,6 +374,7 @@ std::vector<pid_t> forkTrainProcesses(
     
     return trainPids;
 }
+    */
 
 //------------------------------------------------------------------------------
 // A small "Week 1 test" function that sets everything up and demonstrates it

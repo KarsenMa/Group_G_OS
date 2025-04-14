@@ -1,6 +1,19 @@
 Description of program and overview of functions:
 
 
+Parent Process:
+The parent process begins in the main function. It acts as the server for
+the message queues and the setup process for the shared memory and resource 
+allocation table. The parent process creates a child process for each train
+in the input file. 
+
+Child Process: 
+The child process is the train, and holds the train ID and the information
+about the path the train will take. The child process uses the message queue
+to acquire and release semaphore and mutex locks. 
+
+
+
 
 To compile: 
 

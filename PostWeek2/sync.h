@@ -24,10 +24,12 @@ Intersection* findIntersectionbyID(string& intersectionID, Intersection *inter_p
 
 string checkIntersectionType(string& intersectionID, Intersection *inter_ptr, int num_intersections);
 
-bool checkIntersectionLock(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, int trainID, int *held);
+bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, int *held);
 
-bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, int trainID, int *held);
+bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, string& trainID, int *held);
 
-bool releaseIntersection(sshared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, int trainID, int *held);
+bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, string& trainID, int *held);
+
+bool releaseIntersection(sshared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, string& trainID, int *held);
 
 #endif
