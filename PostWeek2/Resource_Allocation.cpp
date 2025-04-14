@@ -75,7 +75,8 @@ void printIntersectionStatus(shared_mem_t *shm, const vector<Intersection> &inte
         reinterpret_cast<char *>(shm) + sizeof(shared_mem_t) +
         shm->num_sem * sizeof(int) +
         shm->num_mutex * sizeof(pthread_mutex_t) +
-        shm->num_sem * sizeof(sem_t));
+        shm->num_sem * sizeof(sem_t) + 
+        (shm->num_sem + shm->num_mutex) * sizeof(Intersection));
 
     cout << left << setw(15) << "IntersectionID"
          << setw(10) << "Type"

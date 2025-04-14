@@ -10,6 +10,7 @@ To compile:
 Files written by 
 Clayton: 
 - TrainCommunication.cpp
+- DeadlockDetection.cpp
 
 Cosette: 
 - shared_Mem.cpp

@@ -18,6 +18,11 @@ struct Intersection
 {
     std::string name;
     std::string type; // "Mutex" or "Semaphore"
+    int index; // intersection number in held matrix
+    union{
+        int sem_index;
+        int mutex_index;
+    }
     int capacity;
 };
 

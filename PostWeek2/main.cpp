@@ -65,9 +65,6 @@ int main(){
     std::ofstream logFile;  // For logging
     int simulatedTime = 0;  // For simulated time tracking
 
-    // TO DO: create resource allocation table
-
-
     // count types of intersections from parsed file or from resource table
     int num_mutex = 0;
     int num_sem = 0;
@@ -102,14 +99,34 @@ int main(){
     
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
+
     // setup pointers to Intersection structs
     Intersection *inter_ptr = reinterpret_cast<Intersection *>(
         reinterpret_cast<char *>(semaphore) + num_sem * sizeof(sem_t));
+
     // set pointer to *held matrix
     int *held = reinterpret_cast<int *>(
         reinterpret_cast<char *>(inter_ptr) + (num_sem + num_mutex) * sizeof(Intersection));
 
     // TO DO: setup resource allocation table
+    int count_sem = 0;
+    int count_mutex = 0;
+
+    for(size_t i = 0; i < intersections.size(); i++){ 
+        inter_ptr[i] = intersections[i]; // copy intersection data into shared memory
+        inter_ptr[i].index = i; // set index for each intersection
+        if(inter_ptr[i].type == "Semaphore"){
+            inter_ptr[i].sem_index = count_sem; // set semaphore index
+            count_sem++;
+            }
+        else if(inter_ptr[i].type == "Mutex"){
+            inter_ptr[i].mutex_index = count_mutex; // set mutex index
+            count_mutex++;
+        }
+        else{
+            std::cerr << "Invalid intersection type" << std::endl;
+        }
+    }
 
 
     // setup message queues
