@@ -16,6 +16,7 @@
 #include <cstring>
 
 #include "shared_Mem.h"
+#include "Resource_Allocation.h"
 
 // mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
 // sem_values is the vector containing the values that each semaphore needs to be initialized at
@@ -24,10 +25,12 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
 {   
     int num_intersections = num_sem + num_mutex;
 
-    size_t resourceAllocationIntersections = (num_mutex + num_sem) * sizeof(int); // get number of intersections needed
-
     // size of memory object in bytes
-    size_t length = sizeof(shared_mem_t) + num_mutex * sizeof(pthread_mutex_t) + num_sem * sizeof(sem_t) + num_sem * sizeof(int);
+    size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
+        + num_sem * sizeof(sem_t)
+        + num_sem * sizeof(int)
+        + num_trains * num_intersections * sizeof(int)
+        + num_intersections * sizeof(Intersection); // size of shared memory object
 
     void *mem_ptr; // pointer to memory object
 
@@ -58,6 +61,8 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
 
+
+
     // create mutex attribute to allow mutex to be accessed by multiple threads/processes
     pthread_mutexattr_t attribute;
     pthread_mutexattr_init(&attribute);
@@ -79,11 +84,16 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
         sem_init(&semaphore[i], 1, sem_values[i]);
     }
 
-    // Initialize held matrix to 0
-    int *held = reinterpret_cast<int *>(
+    // set pointer to intersection structs
+    int *intersection = reinterpret_cast<int *>(
         reinterpret_cast<char *>(semaphore) + num_sem * sizeof(sem_t));
-    memset(held, 0, num_trains * num_intersections * sizeof(int));
+    // set pointer to *held matrix
+    int *held = reinterpret_cast<int *>(
+        reinterpret_cast<char *>(intersection) + num_intersections * sizeof(Intersection));
+    // Initialize held matrix to 0
+        memset(held, 0, num_trains * num_intersections * sizeof(int));
 
+    
     return mem_ptr;
 }
 
@@ -101,10 +111,18 @@ void shared_Mem::mem_close(void *ptr)
 
     char *base = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
     int *sem_val_block = reinterpret_cast<int *>(base);
+    
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
-    size_t length = sizeof(shared_mem_t) + num_mutex * sizeof(pthread_mutex_t) + num_sem * sizeof(sem_t) + num_sem * sizeof(int);
+    
+    size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
+    + num_sem * sizeof(sem_t)
+    + num_sem * sizeof(int)
+    + num_trains * num_intersections * sizeof(int)
+    + num_intersections * sizeof(Intersection);    
+    
     // destroy the mutex objects
+    
     for (int i = 0; i < num_mutex; i++)
     {
         pthread_mutex_destroy(&mutex[i]);
