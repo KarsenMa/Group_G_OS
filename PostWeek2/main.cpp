@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <iomanip>  // For setw
 #include <sstream>  // For stringstream
+#include <cstring>  
 
 #include "shared_Mem.h"
 #include "sync.h"
@@ -33,9 +34,11 @@ using namespace std;
 
 #include <algorithm>
 
+
 void printTrainsAndAttributes(
-    const unordered_map<string, vector<string>> &trains, 
-    const vector<Intersection> &intersections) 
+    const unordered_map<string, vector<string>> &trains,
+    const Intersection *inter_ptr,
+    size_t num_intersections)
 {
     cout << "Train Routes and Intersection Attributes:\n";
     cout << string(60, '=') << endl;
@@ -51,26 +54,29 @@ void printTrainsAndAttributes(
         }
 
         for (const string &intersectionName : route) {
-            // Find the intersection in the vector
-            auto it = find_if(intersections.begin(), intersections.end(),
-                              [&](const Intersection &i) {
-                                  return i.name == intersectionName;
-                              });
+            bool found = false;
 
-            if (it != intersections.end()) {
-                const Intersection &inter = *it;
-                cout << "  - Intersection: " << inter.name << "\n"
-                     << "    Type       : " << inter.type << "\n"
-                     << "    Index      : " << inter.index << "\n"
-                     << "    Capacity   : " << inter.capacity << "\n"
-                     << "    " << (inter.type == "Semaphore" ? 
-                                ("Semaphore Index: " + to_string(inter.sem_index)) :
-                                ("Mutex Index    : " + to_string(inter.mutex_index))) 
-                     << "\n";
-            } else {
+            for (size_t i = 0; i < num_intersections; ++i) {
+                if (strcmp(inter_ptr[i].name, intersectionName.c_str()) == 0) {
+                    const Intersection &inter = inter_ptr[i];
+                    cout << "  - Intersection: " << inter.name << "\n"
+                         << "    Type       : " << inter.type << "\n"
+                         << "    Index      : " << inter.index << "\n"
+                         << "    Capacity   : " << inter.capacity << "\n"
+                         << "    " << (strcmp(inter.type, "Semaphore") == 0 ?
+                                    ("Semaphore Index: " + to_string(inter.sem_index)) :
+                                    ("Mutex Index    : " + to_string(inter.mutex_index)))
+                         << "\n";
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
                 cout << "  - Intersection: " << intersectionName << " [NOT FOUND]\n";
             }
         }
+
         cout << string(60, '-') << endl;
     }
 }
@@ -97,7 +103,7 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
     vector<pid_t> childPIDS;
     for(auto iter : trains) { 
         pid_t pid = fork();
-        cout << "Forking process for train: " << iter.first << "\nPID: " << getpid() << endl;
+        //cout << "Forking process for train: " << iter.first << "\nPID: " << getpid() << endl;
         if(pid == -1) {
             cerr << "Fork failed" << endl;
             perror("fork");
@@ -218,12 +224,9 @@ int main(){
     for(auto iter = intersections.begin(); iter != intersections.end(); ++iter) {
         int currentValue = iter->capacity; // convert string to integer
 
-        cout << "Intersection: " << iter->name << ", Capacity: " << currentValue << endl;
-
         if(currentValue > 1){ 
             num_sem++;
-            sem_values[num_sem - 1] = currentValue; // store semaphore value
-            cout << "Semaphore value: " << sem_values[num_sem - 1] << endl;
+            sem_values[num_sem - 1] = currentValue; // store semaphore value     
         }
         else if(currentValue == 1){
             num_mutex++;
@@ -261,24 +264,26 @@ int main(){
     // setup intersection data in shared memory
     int count_sem = 0;
     int count_mutex = 0;
-
+        int j = 0;
     for(size_t i = 0; i < intersections.size(); ++i){ 
+        
         inter_ptr[i] = intersections[i]; // copy intersection data into shared memory
-        inter_ptr[i].index = i; // set index for each intersection
-        if(inter_ptr[i].type == "Semaphore"){
+        inter_ptr[i].index = j; // set index for each intersection
+        if(strcmp(inter_ptr[i].type, "Semaphore") == 0){
             inter_ptr[i].sem_index = count_sem; // set semaphore index
             count_sem++;
             }
-        else if(inter_ptr[i].type == "Mutex"){
+        else if(strcmp(inter_ptr[i].type, "Mutex") == 0){
             inter_ptr[i].mutex_index = count_mutex; // set mutex index
             count_mutex++;
         }
         else{
-            std::cerr << "Invalid intersection type" << std::endl;
+            std::cerr << "Invalid intersection type" << inter_ptr[i].type << std::endl;
         }
+        j++;
     }
 
-    printTrainsAndAttributes(trains, intersections); // Print train routes and intersection attributes
+    printTrainsAndAttributes(trains, inter_ptr, intersections.size()); // Print train routes and intersection attributes
 
 
     // setup message queues
@@ -296,7 +301,6 @@ int main(){
 
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
-    cout << "Test" << endl;
 
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
 
