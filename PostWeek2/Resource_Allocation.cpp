@@ -30,22 +30,49 @@ using namespace std;
 void parseIntersections(const string &filename, vector<Intersection> &intersections)
 {
     ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Failed to open intersections file: " << filename << endl;
+        return;
+    }
+
     string line;
     while (getline(file, line))
     {
         size_t colon = line.find(':');
         if (colon == string::npos)
+            // cerr << "Invalid line format: " << line << endl;
             continue;
+        // cast data to char arrays
+        char name[32]; // create char array for name
+        strncpy(name, line.substr(0, colon).c_str(), sizeof(name)); // copy name string to char array
+        name[sizeof(name) - 1] = '\0'; 
 
-        string name = line.substr(0, colon);
-        int cap = stoi(line.substr(colon + 1));
-        string type = (cap == 1) ? "Mutex" : "Semaphore";
-        intersections.push_back({name, type, cap});
+        int cap = stoi(line.substr(colon + 1)); // convert string to int
+        char type[10]; // create char array for type
+
+        if(cap == 1){ 
+            strncpy(type, "Mutex", sizeof(type)); // if mutex copy "mutex" to type
+        }
+         else { 
+            strncpy(type, "Semaphore", sizeof(type)); // else copy "semaphore" to type
+        }
+        type[sizeof(type) - 1] = '\0'; // null termination
+
+        Intersection inter;
+        strncpy(inter.name, name, sizeof(inter.name)); // copy name to intersection struct
+        inter.name[sizeof(inter.name) - 1] = '\0'; // null termination
+
+        strncpy(inter.type, type, sizeof(inter.type)); // copy type to intersection struct
+        inter.type[sizeof(inter.type) - 1] = '\0'; // null termination
+
+        inter.index = -1;
+        inter.capacity = cap; // set capacity to intersection struct
+        intersections.push_back(inter);
     }
 }
 
 // Parse trains.txt to map train IDs to their route of intersections
-void parseTrains(const string &filename, unordered_map<int, vector<string>> &trainRoutes)
+/*void parseTrains(const string &filename, unordered_map<int, vector<string>> &trainRoutes)
 {
     ifstream file(filename);
     string line;
@@ -67,7 +94,7 @@ void parseTrains(const string &filename, unordered_map<int, vector<string>> &tra
         }
     }
 }
-
+*/
 // Display the resource allocation table from shared memory
 void printIntersectionStatus(shared_mem_t *shm, const vector<Intersection> &intersections)
 {

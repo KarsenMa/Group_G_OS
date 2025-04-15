@@ -31,11 +31,57 @@
 
 using namespace std;
 
+#include <algorithm>
+
+void printTrainsAndAttributes(
+    const unordered_map<string, vector<string>> &trains, 
+    const vector<Intersection> &intersections) 
+{
+    cout << "Train Routes and Intersection Attributes:\n";
+    cout << string(60, '=') << endl;
+
+    for (const auto &train : trains) {
+        const string &trainName = train.first;
+        const vector<string> &route = train.second;
+
+        cout << "Train: " << trainName << endl;
+        if (route.empty()) {
+            cout << "  Route: [empty]\n";
+            continue;
+        }
+
+        for (const string &intersectionName : route) {
+            // Find the intersection in the vector
+            auto it = find_if(intersections.begin(), intersections.end(),
+                              [&](const Intersection &i) {
+                                  return i.name == intersectionName;
+                              });
+
+            if (it != intersections.end()) {
+                const Intersection &inter = *it;
+                cout << "  - Intersection: " << inter.name << "\n"
+                     << "    Type       : " << inter.type << "\n"
+                     << "    Index      : " << inter.index << "\n"
+                     << "    Capacity   : " << inter.capacity << "\n"
+                     << "    " << (inter.type == "Semaphore" ? 
+                                ("Semaphore Index: " + to_string(inter.sem_index)) :
+                                ("Mutex Index    : " + to_string(inter.mutex_index))) 
+                     << "\n";
+            } else {
+                cout << "  - Intersection: " << intersectionName << " [NOT FOUND]\n";
+            }
+        }
+        cout << string(60, '-') << endl;
+    }
+}
+
+
+
 // This function performs the child process functions
 // input: train name
 // input: vector of strings for the route
 // input: requestQueue and responseQueue for message queue
-void childProcess(string train, vector<string> route, int requestQueue, int responseQueue, 
+void childProcess(const char* train, vector<string> route, int requestQueue, int responseQueue, 
                   shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex) {
     // childProcess takes path and train information
     // childProcess will use message queue to acquire and release semaphore and mutex locks
@@ -51,13 +97,14 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
     vector<pid_t> childPIDS;
     for(auto iter : trains) { 
         pid_t pid = fork();
-
+        cout << "Forking process for train: " << iter.first << "\nPID: " << getpid() << endl;
         if(pid == -1) {
             cerr << "Fork failed" << endl;
+            perror("fork");
             exit(1);
         }
         else if(pid == 0) { // Child process
-            childProcess(iter.first, iter.second, requestQueue, responseQueue, 
+            childProcess(iter.first.c_str(), iter.second, requestQueue, responseQueue, 
                          shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
@@ -72,6 +119,10 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
 // Parse trains.txt to map train IDs to their routes
 void parseTrains(const string &filename, unordered_map<string, vector<string>> &trains) {
     ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Failed to open trains file: " << filename << endl;
+        return;
+    }
     string line;
     
     while (getline(file, line)) {
@@ -145,9 +196,10 @@ int main(){
     vector<Intersection> intersections;
     unordered_map<string, vector<string>> trains;
 
-    parseIntersections("/data/intersections.txt", intersections);
-    parseTrains("/data/trains.txt", trains); // Replace commented-out parseFile line
+    parseIntersections("data/intersections.txt", intersections);
+    parseTrains("data/trains.txt", trains); // Replace commented-out parseFile line
 
+    
     // initializes the log file and opens the "simulation.log" file for logMessage in TrainCommunication.cpp to write in
     // simulation.log must be open for TrainCommunication.cpp to be able to write in
     logFile.open("data/simulation.log", std::ios::out);
@@ -165,9 +217,13 @@ int main(){
 
     for(auto iter = intersections.begin(); iter != intersections.end(); ++iter) {
         int currentValue = iter->capacity; // convert string to integer
+
+        cout << "Intersection: " << iter->name << ", Capacity: " << currentValue << endl;
+
         if(currentValue > 1){ 
             num_sem++;
             sem_values[num_sem - 1] = currentValue; // store semaphore value
+            cout << "Semaphore value: " << sem_values[num_sem - 1] << endl;
         }
         else if(currentValue == 1){
             num_mutex++;
@@ -206,7 +262,7 @@ int main(){
     int count_sem = 0;
     int count_mutex = 0;
 
-    for(size_t i = 0; i < intersections.size(); i++){ 
+    for(size_t i = 0; i < intersections.size(); ++i){ 
         inter_ptr[i] = intersections[i]; // copy intersection data into shared memory
         inter_ptr[i].index = i; // set index for each intersection
         if(inter_ptr[i].type == "Semaphore"){
@@ -221,6 +277,8 @@ int main(){
             std::cerr << "Invalid intersection type" << std::endl;
         }
     }
+
+    printTrainsAndAttributes(trains, intersections); // Print train routes and intersection attributes
 
 
     // setup message queues
@@ -238,7 +296,7 @@ int main(){
 
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
-
+    cout << "Test" << endl;
 
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
 

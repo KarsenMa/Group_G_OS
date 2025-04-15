@@ -23,16 +23,16 @@
 
 using namespace std;
 
-Intersection* findIntersectionbyID(string& intersectionID, Intersection *inter_ptr, int num_intersections);
+Intersection* findIntersectionbyID(const char* intersectionID, Intersection *inter_ptr, int num_intersections);
 
-string checkIntersectionType(string& intersectionID, Intersection *inter_ptr, int num_intersections);
+string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr, int num_intersections);
 
-bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, int *held);
+bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, int *held);
 
-bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, string& intersectionID, string& trainID, int *held);
+bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *held);
 
-bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, string& trainID, int *held);
+bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held);
 
-bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, string& intersectionID, string& trainID, int *held);
+bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held);
 
 #endif

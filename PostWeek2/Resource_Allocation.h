@@ -16,14 +16,14 @@ Date:   04-09-2025
 // Struct to represent an intersection (name, type, capacity)
 struct Intersection
 {
-    std::string name;
-    std::string type; // "Mutex" or "Semaphore"
+    char name[32];
+    char type[10]; // "Mutex" or "Semaphore"
     int index; // intersection number in held matrix
     union{
         int sem_index;
         int mutex_index;
     };
-    int capacity;
+    int capacity;   
 };
 
 // Parses intersections.txt and fills the vector of Intersection structs

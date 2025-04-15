@@ -26,11 +26,12 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     int num_intersections = num_sem + num_mutex;
 
     // size of memory object in bytes
-    size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
-        + num_sem * sizeof(sem_t)
-        + num_sem * sizeof(int)
-        + num_trains * num_intersections * sizeof(int)
-        + num_intersections * sizeof(Intersection); // size of shared memory object
+    size_t length = sizeof(shared_mem_t) 
+        + (num_mutex * sizeof(pthread_mutex_t))
+        + (num_sem * sizeof(sem_t))
+        +(num_sem * sizeof(int))
+        + ((num_trains * num_intersections) * sizeof(int))
+        + (num_intersections * sizeof(Intersection)); // size of shared memory object
 
     void *mem_ptr; // pointer to memory object
 
@@ -52,7 +53,7 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     mem->num_trains = num_trains;
     mem->num_intersections = num_intersections;
 
-    // Memory layout: [shared_mem_t][sem_values][mutexes][semaphores][held]
+    // Memory layout: [shared_mem_t][sem_values][mutexes][semaphores][Intersections][held]
     char *base = reinterpret_cast<char *>(mem_ptr) + sizeof(shared_mem_t);
     int *sem_val_block = reinterpret_cast<int *>(base);
     memcpy(sem_val_block, sem_values, num_sem * sizeof(int));
@@ -85,14 +86,11 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     }
 
     // set pointer to intersection structs
-    int *intersection = reinterpret_cast<int *>(
-        reinterpret_cast<char *>(semaphore) + num_sem * sizeof(sem_t));
+    Intersection *intersection = reinterpret_cast<Intersection *>(semaphore + num_sem);
     // set pointer to *held matrix
-    int *held = reinterpret_cast<int *>(
-        reinterpret_cast<char *>(intersection) + num_intersections * sizeof(Intersection));
+    int *held = reinterpret_cast<int *>(intersection + num_intersections);
     // Initialize held matrix to 0
         memset(held, 0, num_trains * num_intersections * sizeof(int));
-
     
     return mem_ptr;
 }
