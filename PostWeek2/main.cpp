@@ -110,7 +110,11 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
             exit(1);
         }
         else if(pid == 0) { // Child process
-            childProcess(iter.first.c_str(), iter.second, requestQueue, responseQueue, 
+            char trainID[16]; 
+            strncpy(trainID, iter.first.c_str(), sizeof(trainID) - 1);
+            trainID[sizeof(trainID) - 1] = '\0';
+
+            childProcess(trainID, iter.second, requestQueue, responseQueue, 
                          shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
@@ -259,7 +263,7 @@ int main(){
 
     // set pointer to *held matrix
     int *held = reinterpret_cast<int *>(
-        reinterpret_cast<char *>(inter_ptr) + (num_sem + num_mutex) * sizeof(Intersection));
+        reinterpret_cast<char *>(inter_ptr) + (intersections.size()) * sizeof(Intersection));
 
     // setup intersection data in shared memory
     int count_sem = 0;

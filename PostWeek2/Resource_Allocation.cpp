@@ -46,8 +46,14 @@ void parseIntersections(const string &filename, vector<Intersection> &intersecti
         char name[32]; // create char array for name
         strncpy(name, line.substr(0, colon).c_str(), sizeof(name)); // copy name string to char array
         name[sizeof(name) - 1] = '\0'; 
+        int cap = -1;
+        try{ 
+        cap = stoi(line.substr(colon + 1)); // convert string to int
+        } catch (const std::invalid_argument &e) { 
+            cerr << "Invalid capacity value in line: " << line << endl;
+            continue;
+        }
 
-        int cap = stoi(line.substr(colon + 1)); // convert string to int
         char type[10]; // create char array for type
 
         if(cap == 1){ 
