@@ -41,6 +41,7 @@ namespace ResponseType {
 namespace RequestType {
     const int ACQUIRE = 1;
     const int RELEASE = 2;
+    const int DONE = 3;
 }
 
 // Function declarations
@@ -56,7 +57,8 @@ void cleanupMessageQueues(int requestQueue, int responseQueue);
 bool trainSendAcquireRequest(int requestQueue, const char* trainId, const char* intersectionId);
 bool trainSendReleaseRequest(int requestQueue, const char* trainId, const char* intersectionId, 
     shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held);
-    
+bool trainSendDoneMsg(int requestQueue, const char* trainId);
+
 int trainWaitForResponse(int responseQueue, const char* trainId, const char* intersectionId);
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, int requestQueue, int responseQueue, shared_mem_t *shm,
      Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);

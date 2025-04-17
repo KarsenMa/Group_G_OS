@@ -241,8 +241,7 @@ int main(){
     }
     
     // logs to simulation.log when the system is first initalized
-    logFile << "[00:00:00] SERVER: Initialized intersections:\n";
-
+    
     // create shared memory using number of intersections to set size of shared memory
     shared_Mem mem;
 
@@ -307,6 +306,7 @@ int main(){
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
 
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
+        logFile << "[00:00:00] SERVER: Initialized intersections:\n";
 
         processTrainRequests(requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS) { // wait for the child processes to finish
@@ -315,6 +315,12 @@ int main(){
         std::cout << "All trains have finished." << std::endl;
         logFile << "All trains have finished." << std::endl;
     } 
+
+    else if (getpid() != serverPID) { 
+        if(logFile.is_open()) {
+            logFile.close();
+        }
+    }
     
     // cleanup message queues
     cleanupMessageQueues(requestQueue, responseQueue);
