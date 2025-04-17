@@ -43,6 +43,8 @@ Eric:
 
 Karsen: 
 - Forking_Trains.cpp
+- Resource_Allocation.cpp
+- Resource_Allocation.h
 
 Reid:
 - 
