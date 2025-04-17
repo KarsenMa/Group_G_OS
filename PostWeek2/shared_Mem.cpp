@@ -18,9 +18,10 @@
 #include "shared_Mem.h"
 #include "Resource_Allocation.h"
 
-// mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
-// sem_values is the vector containing the values that each semaphore needs to be initialized at
-// size of sem_values is the number of semaphore objects needed.
+/* mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
+*  sem_values is the vector containing the values that each semaphore needs to be initialized at
+*  size of sem_values is the number of semaphore objects needed.
+*/
 void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], int num_trains)
 {   
     int num_intersections = num_sem + num_mutex;
@@ -38,7 +39,7 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666); // creates memory object, set to read and write
     if (shm_fd == -1)
     {
-        perror("shm_open error"); // print out error if shared memory is not created
+        std::cerr << "mem_setup [ERROR]: shared memory not opened" << std::endl; // print out error if shared memory is not created
         return nullptr;
     }
 
@@ -46,16 +47,15 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
 
     mem_ptr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0); // create a pointer to the memory map of the shared memory
 
-    shared_mem_t *mem = static_cast<shared_mem_t *>(mem_ptr); // cast the pointer to the shared memory structure
+    shared_mem_t *mem = static_cast<shared_mem_t *>(mem_ptr); // cast the pointer to the shared memory structure pointer
     // set shared memory variables to the sizes provided in the mem setup
     mem->num_mutex = num_mutex;
     mem->num_sem = num_sem;
     mem->num_trains = num_trains;
     mem->num_intersections = num_intersections;
 
-    // Memory layout: [shared_mem_t][sem_values][mutexes][semaphores][Intersections][held]
-    char *base = reinterpret_cast<char *>(mem_ptr) + sizeof(shared_mem_t);
-    int *sem_val_block = reinterpret_cast<int *>(base);
+    char *mem_struct = reinterpret_cast<char *>(mem) + sizeof(shared_mem_t);
+    int *sem_val_block = reinterpret_cast<int *>(mem_struct);
     memcpy(sem_val_block, sem_values, num_sem * sizeof(int));
 
     // Create pointers to the mutexes and the semaphores in shared memory
@@ -95,24 +95,30 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     return mem_ptr;
 }
 
-// mem_close closes and unmaps the shared memory, destroys the mutex and semaphore objects
-// input is a pointer to shared memory object that needs to be cleared.
+/* mem_close closes and unmaps the shared memory, destroys the mutex and semaphore objects
+*  input is a pointer to shared memory object that needs to be cleared.
+*/
 void shared_Mem::mem_close(void *ptr)
 {
 
     shared_mem_t *shm = reinterpret_cast<shared_mem_t *>(ptr);
 
+    // get values from shared memory for length calculation
     int num_mutex = shm->num_mutex;
     int num_sem = shm->num_sem;
     int num_trains = shm->num_trains;
     int num_intersections = shm->num_intersections;
 
-    char *base = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
-    int *sem_val_block = reinterpret_cast<int *>(base);
-    
+    char *mem_struct = reinterpret_cast<char *>(shm) + sizeof(shared_mem_t);
+    int *sem_val_block = reinterpret_cast<int *>(mem_struct);
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
-    
+    Intersection *intersection = reinterpret_cast<Intersection *>(semaphore + num_sem);
+    int *held = reinterpret_cast<int *>(intersection + num_intersections);
+   
+
+
+    // calculate length of memory to unlink
     size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
     + num_sem * sizeof(sem_t)
     + num_sem * sizeof(int)

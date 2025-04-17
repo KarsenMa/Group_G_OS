@@ -35,69 +35,23 @@ using namespace std;
 #include <algorithm>
 
 
-void printTrainsAndAttributes(
-    const unordered_map<string, vector<string>> &trains,
-    const Intersection *inter_ptr,
-    size_t num_intersections)
-{
-    cout << "Train Routes and Intersection Attributes:\n";
-    cout << string(60, '=') << endl;
-
-    for (const auto &train : trains) {
-        const string &trainName = train.first;
-        const vector<string> &route = train.second;
-
-        cout << "Train: " << trainName << endl;
-        if (route.empty()) {
-            cout << "  Route: [empty]\n";
-            continue;
-        }
-
-        for (const string &intersectionName : route) {
-            bool found = false;
-
-            for (size_t i = 0; i < num_intersections; ++i) {
-                if (strcmp(inter_ptr[i].name, intersectionName.c_str()) == 0) {
-                    const Intersection &inter = inter_ptr[i];
-                    cout << "  - Intersection: " << inter.name << "\n"
-                         << "    Type       : " << inter.type << "\n"
-                         << "    Index      : " << inter.index << "\n"
-                         << "    Capacity   : " << inter.capacity << "\n"
-                         << "    " << (strcmp(inter.type, "Semaphore") == 0 ?
-                                    ("Semaphore Index: " + to_string(inter.sem_index)) :
-                                    ("Mutex Index    : " + to_string(inter.mutex_index)))
-                         << "\n";
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                cout << "  - Intersection: " << intersectionName << " [NOT FOUND]\n";
-            }
-        }
-
-        cout << string(60, '-') << endl;
-    }
-}
-
-
-
-// This function performs the child process functions
-// input: train name
-// input: vector of strings for the route
-// input: requestQueue and responseQueue for message queue
-void childProcess(const char* train, vector<string> route, int requestQueue, int responseQueue, 
+/* This function performs the child process functions
+*  input: train name
+*  input: vector of strings for the route
+*  input: requestQueue and responseQueue for message queue
+*/
+void child_process(const char* train, vector<string> route, int requestQueue, int responseQueue, 
                   shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex) {
-    // childProcess takes path and train information
-    // childProcess will use message queue to acquire and release semaphore and mutex locks
+    // child_process takes path and train information
+    // child_process will use message queue to acquire and release semaphore and mutex locks
     simulateTrainMovement(train, route, requestQueue, responseQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
 
-// This function forks the child processes for each train
-// input: unordered map of trains and their routes
-// input: requestQueue and responseQueue for message queue
-// output: vector of child PIDs
+/* This function forks the child processes for each train
+*  input: unordered map of trains and their routes
+*  input: requestQueue and responseQueue for message queue
+*  output: vector of child PIDs
+*/
 vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue, 
                           shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex) {
     vector<pid_t> childPIDS;
@@ -105,16 +59,17 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
         pid_t pid = fork();
         //cout << "Forking process for train: " << iter.first << "\nPID: " << getpid() << endl;
         if(pid == -1) {
-            cerr << "Fork failed" << endl;
+            cerr << "forkTrains [ERROR]: Fork failed" << endl;
             perror("fork");
             exit(1);
         }
         else if(pid == 0) { // Child process
             char trainID[16]; 
             strncpy(trainID, iter.first.c_str(), sizeof(trainID) - 1);
-            trainID[sizeof(trainID) - 1] = '\0';
+            trainID[sizeof(trainID) - 1] = '\0'; // null termination to reduce junk errors
 
-            childProcess(trainID, iter.second, requestQueue, responseQueue, 
+            // run the child process in the fork
+            child_process(trainID, iter.second, requestQueue, responseQueue, 
                          shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
@@ -122,7 +77,7 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
             childPIDS.push_back(pid); // Store child PID
         }
     } 
-    return childPIDS;  
+    return childPIDS;  // return child PIDs for use in main
 }
 
 // From Resource Allocation
@@ -130,7 +85,7 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
 void parseTrains(const string &filename, unordered_map<string, vector<string>> &trains) {
     ifstream file(filename);
     if (!file.is_open()) {
-        cerr << "Failed to open trains file: " << filename << endl;
+        cerr << "parseTrains [ERROR]: Failed to open file" << filename << endl;
         return;
     }
     string line;
@@ -196,9 +151,12 @@ void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *he
 }
 
 // These should be global variables:
-std::ofstream logFile;  // For logging
+ofstream logFile;  // For logging
 int simulatedTime = 0;  // For simulated time tracking
 
+/* main handles server side, sets up message queues, forks child processes
+* sets up shared memory, logging.
+*/
 int main(){
     pid_t serverPID = getpid(); // get server process ID 
 
@@ -212,9 +170,9 @@ int main(){
     
     // initializes the log file and opens the "simulation.log" file for logMessage in TrainCommunication.cpp to write in
     // simulation.log must be open for TrainCommunication.cpp to be able to write in
-    logFile.open("data/simulation.log", std::ios::out);
+    logFile.open("data/simulation.log", ios::out);
     if (!logFile.is_open()) {
-        std::cerr << "Failed to open simulation.log for writing." << std::endl;
+        cerr << "Main [ERROR]: Failed to open simulation.log for writing." << endl;
         return -1;
     }
 
@@ -228,15 +186,15 @@ int main(){
     for(auto iter = intersections.begin(); iter != intersections.end(); ++iter) {
         int currentValue = iter->capacity; // convert string to integer
 
-        if(currentValue > 1){ 
+        if(currentValue > 1){ // multiple train capacity indicates semaphore intersection
             num_sem++;
             sem_values[num_sem - 1] = currentValue; // store semaphore value     
         }
-        else if(currentValue == 1){
+        else if(currentValue == 1){ // single train capacity indicates mutex intersection
             num_mutex++;
         }
-        else{
-            cerr << "invalid intersection capacity" << endl;
+        else{ // error handling
+            cerr << "Main [ERROR]: invalid intersection capacity for " << iter.name << endl;
         }
     }
     
@@ -249,9 +207,9 @@ int main(){
     void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
     shared_mem_t* shm_ptr = (shared_mem_t*)ptr;
     
-    char *base = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
+    char *mem_struct = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
     
-    int *sem_val_block = reinterpret_cast<int *>(base);
+    int *sem_val_block = reinterpret_cast<int *>(mem_struct);
     
     pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + num_sem);
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
@@ -267,7 +225,8 @@ int main(){
     // setup intersection data in shared memory
     int count_sem = 0;
     int count_mutex = 0;
-        int j = 0;
+    int j = 0; // setup shared memory index for later use
+
     for(size_t i = 0; i < intersections.size(); ++i){ 
         
         inter_ptr[i] = intersections[i]; // copy intersection data into shared memory
@@ -280,20 +239,18 @@ int main(){
             inter_ptr[i].mutex_index = count_mutex; // set mutex index
             count_mutex++;
         }
-        else{
-            std::cerr << "Invalid intersection type" << inter_ptr[i].type << std::endl;
+        else{ // throw error if the intersection type is junk
+            cerr << "Main [ERROR]: Invalid intersection type for " << inter_ptr[i].name << " type: " << inter_ptr[i].type << endl;
         }
         j++;
     }
 
-    printTrainsAndAttributes(trains, inter_ptr, intersections.size()); // Print train routes and intersection attributes
-
-
     // setup message queues
     int requestQueue = 0;
     int responseQueue = 0;
+
     if(setupMessageQueues(requestQueue, responseQueue) == -1){
-        std::cerr << "Could not set up message queues.\n";
+        cerr << "Main [ERROR]: Could not set up message queues.\n";
         return -1; 
     }
     
@@ -305,34 +262,35 @@ int main(){
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
 
+    // run the server process
     if(getpid() == serverPID) { // if the process is the parent process, run the server side
-        logFile << "[00:00:00] SERVER: Initialized intersections:\n";
+        logFile << "[00:00:00] SERVER: Initialized intersections:\n"; 
+        printIntersectionStatus(shm_ptr, inter_ptr, held);
 
         processTrainRequests(requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS) { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
         }
-        std::cout << "All trains have finished." << std::endl;
-        logFile << "All trains have finished." << std::endl;
+        cout << "All trains have finished." << endl;
+        logFile << "All trains have finished." << endl;
     } 
 
+    // close logFile is the process is a child process
     else if (getpid() != serverPID) { 
         if(logFile.is_open()) {
             logFile.close();
         }
     }
     
+    // after process is finished, cleanup
     // cleanup message queues
     cleanupMessageQueues(requestQueue, responseQueue);
 
-
-    if (logFile.is_open()) { // cleanup log file
-        logFile.close();
-    }
+    logFile.close(); // close logFile
 
     mem.mem_close(ptr); // cleanup shared memory
 
-    std::cout << "All processes finished." << std::endl;
-    logFile << "All processes finished." << std::endl;
+    cout << "All processes finished." << endl;
+    logFile << "All processes finished." << endl;
     return 0;
 }
