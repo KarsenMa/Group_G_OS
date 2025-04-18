@@ -7,7 +7,7 @@
     The server process forks child processes for each train and uses shared memory
     to store the state of the intersections and trains.
 
-    g++ -o railway DeadlockDetection.cpp main.cpp Resource_Allocation.cpp shared_Mem.cpp sync.cpp TrainCommunication.cpp -lpthread
+    g++ -o railway DeadlockDetection.cpp main.cpp Resource_Allocation.cpp shared_Mem.cpp sync.cpp TrainCommunication.cpp DeadlockResolution.cpp -lpthread
 
     */
 
