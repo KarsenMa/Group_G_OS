@@ -49,5 +49,10 @@ Karsen:
 - Edge_Case/trains.txt
 
 Reid:
-- 
+- easy/intersections.txt
+- easy/trains.txt
+- intermediate/intersections.txt
+- intermediate/trains.txt
+- hard/intersections.txt
+- hard/trains.txt
 
