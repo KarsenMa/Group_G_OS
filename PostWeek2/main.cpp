@@ -151,9 +151,9 @@ void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *he
         }
 
         /*Intersection data*/
-        cout << left << setw(15) << intersections[i].name /*name*/
-             << setw(10) << intersections[i].type         /*lock type*/
-             << setw(10) << intersections[i].capacity     /*inersection capacity*/
+        cout << left << setw(15) << inter_ptr[i].name /*name*/
+             << setw(10) << inter_ptr[i].type         /*lock type*/
+             << setw(10) << inter_ptr[i].capacity     /*inersection capacity*/
              << setw(12) << lockState                     /*Locked/Unlocked*/
              << "[";
 
@@ -224,7 +224,7 @@ int main()
         }
         else
         { // error handling
-            cerr << "Main [ERROR]: invalid intersection capacity for " << iter.name << endl;
+            cerr << "Main [ERROR]: invalid intersection capacity for " << iter->name << endl;
         }
     }
 

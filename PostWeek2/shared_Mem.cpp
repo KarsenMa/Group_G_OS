@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
+
 
 #include "shared_Mem.h"
 #include "Resource_Allocation.h"

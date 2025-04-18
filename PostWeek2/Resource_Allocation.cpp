@@ -100,7 +100,7 @@ void printIntersectionStatus(shared_mem_t *shm, const vector<Intersection> &inte
         + shm->num_sem * sizeof(int)                             /*Mem for semaphore counter*/
         + shm->num_mutex * sizeof(pthread_mutex_t)               /*Mem for mutexs*/
         + shm->num_sem * sizeof(sem_t)                 /*Mem for semaphores*/
-        + (shm->num_sem + shm->num_mutex) * sizeof(Intersection)); /*Interseciton data*/
+        + (shm->num_sem + shm->num_mutex) * sizeof(Intersection); /*Interseciton data*/
     int *held = reinterpret_cast<int *>(basePtr + offset);
 
     /*Columns for Resource Allocation Table*/
