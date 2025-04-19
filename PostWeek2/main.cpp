@@ -1,6 +1,6 @@
 /*  Group G
-    Author Name: Cosette Byte
-    Email: cosette.byte@okstate.edu
+    Author Name: Reid Wilson
+    Email: reid.wilson@okstate.edu
     Date: 4/9/2025
     Program Description: This file contains the main function for the train simulation.
     It uses message queues to communicate between the server and child processes.
@@ -20,8 +20,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <iomanip> // For setw
-#include <sstream> // For stringstream
+#include <iomanip>
+#include <sstream>
 #include <cstring>
 
 #include "shared_Mem.h"
@@ -89,85 +89,85 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
 /* Parse trains.txt to map train ids to routes */
 void parseTrains(const string &filename, unordered_map<string, vector<string>> &trains)
 {
-    ifstream file(filename); /*open trains.txt*/
+    ifstream file(filename); /* open trains.txt */
     if (!file.is_open())
     {
-        cerr << "parseTrains [ERROR]: Failed to open" << filename << endl; /*error detection*/
+        cerr << "parseTrains [ERROR]: Failed to open" << filename << endl; /* error detection */
         return;
     }
     string line;
 
-    while (getline(file, line)) /*Read trains.txt*/
+    while (getline(file, line)) /* Read trains.txt */
     {
-        size_t colon = line.find(':'); /*colon that breaks train id from route*/
-        if (colon == string::npos)     /*if No colon, skip line invalid format*/
+        size_t colon = line.find(':'); /* colon that breaks train id from route */
+        if (colon == string::npos)     /* if No colon, skip line invalid format */
             continue;
 
-        string trainName = line.substr(0, colon);  /*before colon is train id*/
-        string routeData = line.substr(colon + 1); /*after colon is the route*/
+        string trainName = line.substr(0, colon);  /* before colon is train id */
+        string routeData = line.substr(colon + 1); /* after colon is the route */
 
-        stringstream ss(routeData); /*stringstream to parse data*/
+        stringstream ss(routeData); /* stringstream to parse data */
         string intersection;
-        vector<string> route; /*Vector to hold route*/
+        vector<string> route; /* Vector to hold route */
 
-        while (getline(ss, intersection, ',')) /*intersection need to be stored after each comma*/
+        while (getline(ss, intersection, ',')) /* intersection need to be stored after each comma */
         {
             route.push_back(intersection);
         }
 
-        trains[trainName] = route; /*map train id to route*/
+        trains[trainName] = route; /* map train id to route */
     }
 }
 
-/* From Resouce ALlocation*/
+/* From Resouce ALlocation */
 /* Print Resource ALlocation Table */
 void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *held)
 {
-    /*Columns for Resource Allocation Table*/
+    /* Columns for Resource Allocation Table */
     cout << left << setw(15) << "IntersectionID"
          << setw(10) << "Type"
          << setw(10) << "Capacity"
          << setw(12) << "Lock State"
          << "Holding Trains" << endl;
 
-    /*Seperate columns from data*/
+    /* Seperate columns from data */
     cout << string(60, '_') << endl;
 
-    /*Loop through intersections*/
+    /* Loop through intersections */
     for (int i = 0; i < shm->num_intersections; ++i)
     {
-        /*Lock is not held*/
+        /* Lock is not held */
         string lockState = "Unlocked";
 
-        /*Chech Lock State*/
+        /* Chech Lock State */
         for (int t = 0; t < shm->num_trains; ++t)
         {
-            if (held[t * shm->num_intersections + i] == 1) /*find intersections held by train*/
+            if (held[t * shm->num_intersections + i] == 1) /* find intersections held by train */
             {
-                /*If train holds intersection set locked*/
+                /* If train holds intersection set locked */
                 lockState = "Locked";
                 break;
             }
         }
 
-        /*Intersection data*/
-        cout << left << setw(15) << inter_ptr[i].name /*name*/
-             << setw(10) << inter_ptr[i].type         /*lock type*/
-             << setw(10) << inter_ptr[i].capacity     /*inersection capacity*/
-             << setw(12) << lockState                     /*Locked/Unlocked*/
+        /* Intersection data */
+        cout << left << setw(15) << inter_ptr[i].name /* name */
+             << setw(10) << inter_ptr[i].type         /* lock type */
+             << setw(10) << inter_ptr[i].capacity     /* inersection capacity */
+             << setw(12) << lockState                     /* Locked/Unlocked */
              << "[";
 
         bool one = true;
 
-        /*Loop for printing trains that hold lock on specific intersection*/
+        /* Loop for printing trains that hold lock on specific intersection */
         for (int t = 0; t < shm->num_trains; ++t)
         {
-            /*True value in held matrix*/
+            /* True value in held matrix */
             if (held[t * shm->num_intersections + i] == 1)
             {
-                if (!one) /*Multiple elements separate with comma*/
+                if (!one) /* Multiple elements separate with comma */
                     cout << ", ";
-                cout << "Train" << t; /*Trains Id*/
+                cout << "Train" << t; /* Trains Id */
                 one = false;
             }
         }

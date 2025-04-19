@@ -20,9 +20,10 @@
 
 using namespace std;
 
-/* findIntersectionbyID searches shared memory for a specific intersection based on its ID
-*  input: intersection ID reference, intersection pointer, and number of intersections
-*  output: returns a pointer to the intersection if found, otherwise nullptr
+/*
+* findIntersectionbyID searches shared memory for a specific intersection based on its ID
+* input: intersection ID reference, intersection pointer, and number of intersections
+* output: returns a pointer to the intersection if found, otherwise nullptr
 */
 Intersection* findIntersectionbyID(const char* intersectionID, Intersection *inter_ptr, int num_intersections){
     
@@ -34,9 +35,10 @@ Intersection* findIntersectionbyID(const char* intersectionID, Intersection *int
     return nullptr; // intersection not found
 }
 
-/* checkIntersectionType checks if the intersection is a mutex or semaphore
-*  input: intersection ID reference, intersection pointer, and number of intersections
-*  output: returns the type of intersection (semaphore or mutex)
+/* 
+* checkIntersectionType checks if the intersection is a mutex or semaphore
+* input: intersection ID reference, intersection pointer, and number of intersections
+* output: returns the type of intersection (semaphore or mutex)
 */
 string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr, int num_intersections){
     string type = "";
@@ -51,9 +53,10 @@ string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr
     return type;
 }
 
-/* intersectionOpen takes intersection ID reference as input performs 
-*  checks to see if intersection is open without changing lock status
-*  returns true if intersection is open
+/*
+* intersectionOpen takes intersection ID reference as input performs 
+* checks to see if intersection is open without changing lock status
+* returns true if intersection is open
 */
 bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, int *held){
     bool unlocked = true;
@@ -81,9 +84,10 @@ bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const cha
     return unlocked;
 }
 
-/* checkIntersectionLockbyTrain checks if the intersection is locked by a specific train
-*  input: shared memory pointer, intersection pointer, intersection ID, train ID, and held matrix pointer
-*  returns true if the intersection is locked by the train
+/*
+* checkIntersectionLockbyTrain checks if the intersection is locked by a specific train
+* input: shared memory pointer, intersection pointer, intersection ID, train ID, and held matrix pointer
+* returns true if the intersection is locked by the train
 */
 bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *held){
     bool locked = false;
@@ -109,11 +113,12 @@ bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, co
     return locked;
 }
 
-/* LockIntersection locks an intersection based on the type of lock
-*  (semaphore or mutex) and adds the train ID to the held matrix
-*  input: shared memory pointer, intersection pointer, semaphore pointer, mutex pointer,
-*  intersection ID, train ID, and held matrix pointer
-*  returns true if lock was able to be acquired
+/*
+* LockIntersection locks an intersection based on the type of lock
+* (semaphore or mutex) and adds the train ID to the held matrix
+* input: shared memory pointer, intersection pointer, semaphore pointer, mutex pointer,
+* intersection ID, train ID, and held matrix pointer
+* returns true if lock was able to be acquired
 */
 bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held){
     bool locked = false; // set default to false to protect from errors
@@ -161,9 +166,10 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
 }
 
 
-/* releaseIntersection takes intersection ID as input
-*  unlocks semaphore or mutex
-*  returns if lock was able to be released.
+/*
+* releaseIntersection takes intersection ID as input
+* unlocks semaphore or mutex
+* returns if lock was able to be released.
 */
 bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held){
     int trainIDNum = stoi(string(trainID).substr(5)); // convert string to integer for held matrix

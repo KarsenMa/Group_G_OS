@@ -20,9 +20,10 @@
 #include "shared_Mem.h"
 #include "Resource_Allocation.h"
 
-/* mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
-*  sem_values is the vector containing the values that each semaphore needs to be initialized at
-*  size of sem_values is the number of semaphore objects needed.
+/* 
+* mem_setup sets up shared memory object. Num_mutex is the number of mutex objects needed
+* sem_values is the vector containing the values that each semaphore needs to be initialized at
+* size of sem_values is the number of semaphore objects needed.
 */
 void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], int num_trains)
 {   
@@ -97,8 +98,9 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     return mem_ptr;
 }
 
-/* mem_close closes and unmaps the shared memory, destroys the mutex and semaphore objects
-*  input is a pointer to shared memory object that needs to be cleared.
+/*
+* mem_close closes and unmaps the shared memory, destroys the mutex and semaphore objects
+* input is a pointer to shared memory object that needs to be cleared.
 */
 void shared_Mem::mem_close(void *ptr)
 {

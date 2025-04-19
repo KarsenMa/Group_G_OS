@@ -38,7 +38,6 @@ Clayton:
 Cosette: 
 - shared_Mem.cpp
 - shared_Mem.h
-- main.cpp
 - sync.cpp
 - sync.h
 
@@ -59,6 +58,7 @@ Karsen:
 - Edge_Case/trains.txt
 
 Reid:
+- main.cpp
 - easy/intersections.txt
 - easy/trains.txt
 - intermediate/intersections.txt

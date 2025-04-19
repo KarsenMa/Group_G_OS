@@ -244,9 +244,7 @@ string getIntersectionHeldByTrain(shared_mem_t *shm, const vector<Intersection> 
 // Function to detect and handle deadlocks
 
 /* 
-************
-// call this function from main with the shared mem pointer and vector<Intersection> to create graph and run deadlock detection
-************
+    call this function from main with the shared mem pointer and vector<Intersection> to create graph and run deadlock detection
 */
 void detectAndResolveDeadlock(shared_mem_t *shm, const vector<Intersection> &intersections) {
     string cycleDescription;
@@ -255,9 +253,7 @@ void detectAndResolveDeadlock(shared_mem_t *shm, const vector<Intersection> &int
         cout << "Deadlock detected! Cycle: " << cycleDescription << endl;
 
         /*
-        ******************
         Future Use: Week 4 Task
-        ******************
         */
         // Parse the deadlock cycle into a vector
         vector<string> cycle;

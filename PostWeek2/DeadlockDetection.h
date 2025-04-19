@@ -52,8 +52,7 @@ std::string formatCycle(const std::vector<std::string> &cycle);
 bool checkForDeadlock(shared_mem_t *shm, const std::vector<Intersection> &intersections, 
                      std::string &cycleDesc);
 
-// Main function to detect deadlocks
-// call this function in main
+// Main function to detect deadlocks, call in main
 void detectAndResolveDeadlock(shared_mem_t *shm, const std::vector<Intersection> &intersections);
 
 

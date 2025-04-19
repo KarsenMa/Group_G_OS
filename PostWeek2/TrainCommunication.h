@@ -14,8 +14,8 @@ Date: 04-13-2025
 
 #include <semaphore.h>
 #include <pthread.h>
-#include "sync.h" // included for semaphore and mutex implementation
-#include "shared_Mem.h" // included for shared memory implementation
+#include "sync.h"
+#include "shared_Mem.h"
 
 // Message structures
 struct RequestMsg {
