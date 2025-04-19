@@ -18,6 +18,16 @@ to acquire and release semaphore and mutex locks.
 To compile: 
 g++ shared_Mem.cpp DeadlockDetection.cpp DeadlockResolution.cpp Resource_Allocation.cpp sync.cpp TrainCommunication.cpp main.cpp -pthread -lrt -o RailwaySim
 
+Best practice during testing: 
+Before closing your session on csx server, check to make sure no shared memory objects are leftover
+from aborted processes. 
+Run 
+ls -l /dev/shm/sharedMemory3
+If sharedMemory3 exists and is owned by you, then remove it.
+rm /dev/shm/sharedMemory3
+
+This will ensure you do not have further issues with the shared memory.
+
 
 
 Files written by 
