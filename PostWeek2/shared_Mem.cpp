@@ -38,7 +38,7 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
 
     void *mem_ptr; // pointer to memory object
 
-    int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666); // creates memory object, set to read and write
+    int shm_fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, 0666); // creates memory object, set to read and write
     if (shm_fd == -1)
     {
         std::cerr << "mem_setup [ERROR]: shared memory not opened" << std::endl; // print out error if shared memory is not created
