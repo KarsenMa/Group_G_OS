@@ -9,6 +9,7 @@
 
 #include "shared_Mem.h"
 #include "Resource_Allocation.h"
+#include "DeadlockResolution.h"
 #include <iostream>
 #include <stdexcept>
 #include <fstream>
@@ -254,11 +255,10 @@ void detectAndResolveDeadlock(shared_mem_t *shm, const vector<Intersection> &int
         cout << "Deadlock detected! Cycle: " << cycleDescription << endl;
 
         /*
-        
         ******************
         Future Use: Week 4 Task
         ******************
-
+        */
         // Parse the deadlock cycle into a vector
         vector<string> cycle;
         size_t pos = 0;
@@ -283,13 +283,10 @@ void detectAndResolveDeadlock(shared_mem_t *shm, const vector<Intersection> &int
             if (!intersectionToRelease.empty()) {
                 cout << "Preempting " << intersectionToRelease << " from " << trainToPreempt << "." << endl;
                 
-                // Future preemption/deadlock handling implentation Week 4 Task
-                
-                // Prints what would happen
-                cout << trainToPreempt << " released " << intersectionToRelease << " forcibly." << endl;
+                // calls to resolveDeadlock in DeadlockResolution.cpp to forcibly release a held intersection
+                resolveDeadlock(shm, intersections, trainToPreempt.c_str(), intersectionToRelease.c_str());
             }
         }
-    */
 
     } else {
         cout << "No deadlock detected." << endl;

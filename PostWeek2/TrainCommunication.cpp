@@ -202,6 +202,20 @@ int trainWaitForResponse(int responseQueue, const char* trainId) {
     return msg.response_type;
 }
 
+bool trainSendDoneMsg(int requestQueue, const char* trainId){
+    RequestMsg msg;
+        
+        msg.mtype = RequestType::DONE;
+        strncpy(msg.train_id, trainId, sizeof(msg.train_id) - 1);
+        msg.train_id[sizeof(msg.train_id) - 1] = '\0';
+        
+        if (msgsnd(requestQueue, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+            std::cerr << "Failed to send DONE message: " << strerror(errno) << std::endl;
+            return false;
+        }
+        return true;
+    }
+
 // Function to simulate train movement
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, 
                            int requestQueue, int responseQueue, shared_mem_t *shm,
@@ -269,6 +283,8 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
     }
     
     logMessage(std::string(trainId) + ": Completed route.");
+    trainSendDoneMsg(requestQueue, trainId);
+    return;
 }
 
 //------------------------------------------------------------------------------
@@ -357,9 +373,11 @@ void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm
     char trainId[16];
     char intersectionId[32];
     int reqType;
+    int trainsDone = 0;
 
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
-    while (serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
+    while (trainsDone < shm->num_trains) {
+        serverReceiveRequest(requestQueue, trainId, intersectionId, reqType);
         /*if (reqType == RequestType::ACQUIRE) {
         // For this simpler version, always grant immediately
         serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
@@ -380,6 +398,14 @@ void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm
             // Just log it
             logMessage(std::string("SERVER: ") + trainId + " released " + intersectionId + ".");
             
+        }
+        else if(reqType == RequestType::DONE) {
+            // Log the completion
+            trainsDone++;
+            logMessage(std::string("SERVER: ") + trainId + " completed its route.");
+        }
+        else {
+            std::cerr << "Unknown request type: " << reqType << std::endl;
         }
     }
 }

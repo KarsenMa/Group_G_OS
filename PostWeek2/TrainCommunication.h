@@ -17,7 +17,7 @@ Date: 04-13-2025
 #include "sync.h" // included for semaphore and mutex implementation
 #include "shared_Mem.h" // included for shared memory implementation
 
-// Message structures for IPC
+// Message structures
 struct RequestMsg {
     long mtype;                  // Message type
     char train_id[20];            // Train ID
@@ -26,24 +26,25 @@ struct RequestMsg {
 
 struct ResponseMsg {
     long mtype;                  // Message type
-    int response_type;           // Grant, Wait, or Deny
-    char intersection_id[20];    // Intersection ID
+    int response_type;           // will be either grant, wait, or deny
+    char intersection_id[20];    
 };
 
-// Constants for response types
+// Constants per response types
 namespace ResponseType {
     const int GRANT = 1;
     const int WAIT = 2;
     const int DENY = 3;
 }
 
-// Constants for request types
+// Constants per request types
 namespace RequestType {
     const int ACQUIRE = 1;
     const int RELEASE = 2;
+    const int DONE = 3;
 }
 
-// Function declarations
+// Functions
 
 std::string getTimestamp();
 void logMessage(const std::string& message);
@@ -56,7 +57,8 @@ void cleanupMessageQueues(int requestQueue, int responseQueue);
 bool trainSendAcquireRequest(int requestQueue, const char* trainId, const char* intersectionId);
 bool trainSendReleaseRequest(int requestQueue, const char* trainId, const char* intersectionId, 
     shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held);
-    
+bool trainSendDoneMsg(int requestQueue, const char* trainId);
+
 int trainWaitForResponse(int responseQueue, const char* trainId, const char* intersectionId);
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, int requestQueue, int responseQueue, shared_mem_t *shm,
      Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
@@ -66,7 +68,7 @@ bool serverReceiveRequest(int requestQueue, const char* trainId, const char* int
 bool serverSendResponse(int responseQueue, const char* trainId, const char* intersectionId, int responseType);
 void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
 
-// External logging file and simulated time
+// Logging file and simulated time
 extern std::ofstream logFile;
 extern int simulatedTime;
 
