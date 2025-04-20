@@ -24,11 +24,12 @@
 #include <iomanip>
 #include <sys/wait.h>
 #include <algorithm>
+#include <sys/file.h>
 
 #include "TrainCommunication.h" // included for semaphore and mutex implementation
 
 // External file for logging
-extern std::ofstream logFile;
+// extern std::ofstream logFile;
 
 // We define these in main.cpp (so only one definition in the whole project):
 extern int simulatedTime; 
@@ -49,12 +50,31 @@ std::string getTimestamp() {
 
 // Function to log a message to both console and file
 void logMessage(const std::string& message) {
-    std::string timestamped = "[" + getTimestamp() + "] " + message;
-    std::cout << timestamped << std::endl;
-    if (logFile.is_open()) {
-        logFile << timestamped << std::endl;
-        logFile.flush();
+    std::string timestamped = "[" + getTimestamp() + "] " + message + "\n";
+    std::cout << timestamped;
+    char fileName[] = "data/simulation.log";
+
+    int fd = open(fileName, O_WRONLY | O_APPEND);
+    if(fd == -1) { 
+        std::cerr << "logMessage [ERROR]: Failed to open " << fileName << " for writing." << std::endl;
+        return;
     }
+
+    if(flock(fd, LOCK_EX) == -1) {
+        std::cerr << "logMessage [ERROR]: Failed to lock " << fileName << "." << std::endl;
+        close(fd);
+        return;
+    }
+
+    write(fd, timestamped.c_str(), timestamped.size());
+    
+   
+    //    logFile << timestamped << std::endl;
+    //    logFile.flush();
+
+    flock(fd, LOCK_UN);
+    close(fd);
+    return;
 }
 
 // Function to set up message queues

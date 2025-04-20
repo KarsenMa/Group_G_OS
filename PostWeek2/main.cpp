@@ -6,9 +6,6 @@
     It uses message queues to communicate between the server and child processes.
     The server process forks child processes for each train and uses shared memory
     to store the state of the intersections and trains.
-
-    g++ -o railway DeadlockDetection.cpp main.cpp Resource_Allocation.cpp shared_Mem.cpp sync.cpp TrainCommunication.cpp DeadlockResolution.cpp -lpthread
-
     */
 
 #include <iostream>
@@ -177,7 +174,7 @@ void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *he
 }
 
 // These should be global variables:
-ofstream logFile;      // For logging
+// ofstream logFile;      // For logging
 int simulatedTime = 0; // For simulated time tracking
 
 /* main handles server side, sets up message queues, forks child processes
@@ -194,14 +191,29 @@ int main()
     parseIntersections("data/intersections.txt", intersections);
     parseTrains("data/trains.txt", trains); // Replace commented-out parseFile line
 
+    char fileName[] = "data/simulation.log";
+
+    int fd = open(fileName, O_WRONLY | O_CREAT, 0666);
+    if (fd == -1)
+    {
+        cerr << "Main [ERROR]: Failed to open " << fileName << " for writing." << endl;
+        return -1;
+    }
+
+    close(fd);
+
+    // TO DO: change to create file then close. 
+    // make sure logging only opens the already exisitng file
     // initializes the log file and opens the "simulation.log" file for logMessage in TrainCommunication.cpp to write in
     // simulation.log must be open for TrainCommunication.cpp to be able to write in
-    logFile.open("data/simulation.log", ios::out);
+    
+
+    /*logFile.open("data/simulation.log", ios::app);
     if (!logFile.is_open())
     {
         cerr << "Main [ERROR]: Failed to open simulation.log for writing." << endl;
         return -1;
-    }
+    }*/
 
     // count types of intersections from parsed file or from resource table
     int num_mutex = 0;
@@ -294,42 +306,44 @@ int main()
 
     detectAndResolveDeadlock(static_cast<shared_mem_t *>(ptr), intersections); // pass in shared memory pointer and vector of intersections
 
+    logMessage("SERVER: Initialized intersections");
+    cout << endl;
+
+    printIntersectionStatus(shm_ptr, inter_ptr, held);
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
 
     // run the server process
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
-        logFile << "[00:00:00] SERVER: Initialized intersections:\n";
-        printIntersectionStatus(shm_ptr, inter_ptr, held);
-
+    
         processTrainRequests(requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS)
         { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
         }
         cout << "All trains have finished." << endl;
-        logFile << "All trains have finished." << endl;
+        logMessage("All trains have finished.");
     }
 
     // close logFile is the process is a child process
-    else if (getpid() != serverPID)
+   /* else if (getpid() != serverPID)
     {
         if (logFile.is_open())
         {
             logFile.close();
         }
-    }
+    } */
 
     // after process is finished, cleanup
     // cleanup message queues
     cleanupMessageQueues(requestQueue, responseQueue);
 
-    logFile.close(); // close logFile
+   // logFile.close(); // close logFile
 
     mem.mem_close(ptr); // cleanup shared memory
 
     cout << "All processes finished." << endl;
-    logFile << "All processes finished." << endl;
+    
     return 0;
 }
