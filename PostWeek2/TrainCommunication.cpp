@@ -116,7 +116,16 @@ void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue, int
 // Damian
 // TO DO: create function to send log messages to server (follow message send format)
 bool sendLogMessage(int logQueue, const std::string& message) { 
+    RequestMsg msg;
+    msg.mtype = ResponseType::LOG; // Response type for logging
+    strncpy(msg.train_id, message.c_str(), sizeof(msg.train_id));
+    msg.intersection_id[0] = '\0'; // when no intersection needed
 
+    if (msgsnd(logQueue, &msg, sizeof(RequestMsg) - sizeof(long), 0) == -1) {
+        perror("Failed to send log message");
+        return false;
+    }
+    return true;
 }
 
 // Function to send an ACQUIRE request

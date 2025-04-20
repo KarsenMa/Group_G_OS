@@ -301,8 +301,8 @@ int main()
         return -1;
     }
 
-    // Create resource allocation graph
-    printIntersectionStatus(shm_ptr, inter_ptr, held); // Display resource allocation table
+    // Used to create resource allocation graph
+    printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
 
     detectAndResolveDeadlock(static_cast<shared_mem_t *>(ptr), intersections); // pass in shared memory pointer and vector of intersections
 
