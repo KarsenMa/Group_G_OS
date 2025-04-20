@@ -5,8 +5,7 @@ Email: damian.silvar@okstate.edu
 Date: 04-13-2025
 */
 
-#ifndef TRAIN_COMMUNICATION_H
-#define TRAIN_COMMUNICATION_H
+
 
 #include <string>
 #include <vector>
@@ -28,11 +27,6 @@ struct ResponseMsg {
     long mtype;                  // Message type
     int response_type;           // will be either grant, wait, or deny
     char intersection_id[20];    
-};
-
-struct LogMsg { 
-    long mtype; 
-    char message[100];
 };
 
 // Constants per response types
@@ -63,7 +57,7 @@ void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue);
 bool trainSendAcquireRequest(int requestQueue, int logQueue, const char* trainId, const char* intersectionId);
 bool trainSendReleaseRequest(int requestQueue, int logQueue, const char* trainId, const char* intersectionId, 
     shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held);
-bool trainSendDoneMsg(int requestQueue, const char* trainId);
+// **Function included in trainCommExtension** bool trainSendDoneMsg(int requestQueue, const char* trainId);
 
 int trainWaitForResponse(int responseQueue, int logQueue, const char* trainId, const char* intersectionId);
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, int requestQueue, int responseQueue, shared_mem_t *shm,

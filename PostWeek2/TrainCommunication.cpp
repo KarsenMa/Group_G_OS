@@ -1,7 +1,7 @@
 //---------------------------------------- TrainCommunication.cpp ------------------------------------
 /*
   Group G
-  Author: Clayton Nunley
+  Author: Clayton Nunley, Cosette Byte, Damian Silvar
   Email: clayton.nunley@okstate.edu
   Date: April 2, 2025
 
@@ -26,12 +26,15 @@
 #include <algorithm>
 #include <sys/file.h>
 
-#include "TrainCommunication.h" // included for semaphore and mutex implementation
+// **NO LONGER USED ** #include "TrainCommunication.h" // included for semaphore and mutex implementation
+#include "trainCommExtension.h" // included for logging and wait queueing
+
+
 
 // External file for logging
 // extern std::ofstream logFile;
 
-// We define these in main.cpp (so only one definition in the whole project):
+// We define this in main.cpp (so only one definition in the whole project):
 extern int simulatedTime; 
 
 // Function to get formatted timestamp
@@ -79,14 +82,16 @@ void LogMessage(const std::string& message) {
 
 
 // Function to set up message queues
-int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue) {
+int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue, int& waitQueue) {
     key_t requestKey = ftok(".", 'R');
     key_t responseKey = ftok(".", 'S');
     key_t logKey = ftok(".", 'L');
+    key_t waitKey = ftok(".", 'W');
     
     requestQueue = msgget(requestKey, IPC_CREAT | 0666);
     responseQueue = msgget(responseKey, IPC_CREAT | 0666);
     logQueue = msgget(logKey, IPC_CREAT | 0666);
+    waitQueue = msgget(waitKey, IPC_CREAT | 0666);
     
     if (requestQueue == -1 || responseQueue == -1 || logQueue == -1) {
         std::cerr << "Failed to create message queues: " << strerror(errno) << std::endl;
@@ -97,16 +102,18 @@ int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue) {
 }
 
 // Function to clean up message queues
-void cleanupMessageQueues(int requestQueue, int responseQueue) {
+void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue, int waitQueue) {
     msgctl(requestQueue, IPC_RMID, nullptr);
     msgctl(responseQueue, IPC_RMID, nullptr);
     msgctl(logQueue, IPC_RMID, nullptr);
+    msgctl(waitQueue, IPC_RMID, nullptr);
 }
 
 /*
 * Train functions for communicating with the server
 */
 
+// Damian
 // TO DO: create function to send log messages to server (follow message send format)
 bool sendLogMessage(int logQueue, const std::string& message) { 
 
@@ -150,7 +157,7 @@ bool trainSendReleaseRequestExtended(int requestQueue, int logQueue, const char*
     }
     else {
         // Log the release request
-        releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+        // **Moved to server side** releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
         sendLogMessage(logQueue, std::string(trainId) + ": Sent RELEASE request for " + intersectionId + ".");
         return true;
     }
@@ -205,24 +212,10 @@ int trainWaitForResponse(int responseQueue, int logQueue, const char* trainId) {
     return msg.response_type;
 }
 
-// Function to send a DONE message keeping process running in main until all train are done
-bool trainSendDoneMsg(int requestQueue, const char* trainId){
-    RequestMsg msg;
-        
-        msg.mtype = RequestType::DONE;
-        strncpy(msg.train_id, trainId, sizeof(msg.train_id) - 1);
-        msg.train_id[sizeof(msg.train_id) - 1] = '\0';
-        
-        if (msgsnd(requestQueue, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
-            std::cerr << "Failed to send DONE message: " << strerror(errno) << std::endl;
-            return false;
-        }
-        return true;
-    }
 
 // Function to simulate train movement
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, 
-                           int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm,
+                           int requestQueue, int responseQueue, int waitQueue, int logQueue, shared_mem_t *shm,
                            Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) 
 {
     // Iterate through each intersection in the route
@@ -307,29 +300,9 @@ bool serverReceiveRequest(int requestQueue, char* trainId, char* intersectionId,
     return true;
 }
 
-bool serverReceiveLog(int logQueue, char* log) { 
-    LogMsg logMsg;
-
-    // Receive log message
-    if (msgrcv(logQueue, &logMsg, sizeof(logMsg) - sizeof(long), 0, 0) == -1) {
-        if(errno == EINTR) {
-            // Interrupted by signal
-            return false;
-        }
-        std::cerr << "serverReceiveLog [ERROR]: Failed to receive log message: " << strerror(errno) << std::endl;
-        return false;
-    }
-    strncpy(log, logMsg.message, sizeof(logMsg.message) - 1);
-    log[sizeof(logMsg.message) - 1] = '\0';
-
-    return true;
-
-
-
-}
 
 // Function to send a response
-bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, 
+bool serverSendResponse(int responseQueue, int logQueue, int waitQueue, const char* trainId, 
                         const char* intersectionId, int responseType) 
 {
     ResponseMsg resp;
@@ -373,6 +346,7 @@ bool serverSendResponse(int responseQueue, int logQueue, const char* trainId,
 
         sendLogMessage(logQueue, std::string("SERVER: ") + responseTypeStr + " " + intersectionId + " to " + trainId + ".");
     } else if (responseType == ResponseType::WAIT) {
+        // log the wait. 
         sendLogMessage(logQueue, std::string("SERVER: ") + intersectionId + " is busy. " + trainId + " added to wait queue.");
     }
     
@@ -380,7 +354,7 @@ bool serverSendResponse(int responseQueue, int logQueue, const char* trainId,
     return true;
 }
 
-// Simplified server side: always grants ACQUIRE, logs RELEASE
+// function to handle train requests (acquire or release or deny access to intersection)
 void processTrainRequests(int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm, 
     Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
     char trainId[16];
@@ -392,10 +366,28 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, sha
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (trainsDone < shm->num_trains) {
         
-        // take log message from queue and send to log file
-        serverReceiveLog(logQueue, log);
-        logMessage(log);
+        if(processWaitQueue(waitQueue, trainId, intersectionId)) {
+            // Process wait queue
+            // waiting trains are always trying to acquire the intersection
 
+            // Grant the request
+            if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
+                serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::GRANT);
+                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+
+            }
+            else{
+                addToWaitQueue(waitQueue, trainId, intersectionId);
+                serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::WAIT);
+            }
+
+            // take log message from queue and send to log file
+            if(serverReceiveLog(logQueue, log)){
+                logMessage(log);
+            }
+
+        }
+        else {
 
         serverReceiveRequest(requestQueue, logQueue, trainId, intersectionId, reqType);
         if(reqType == RequestType::ACQUIRE) {
@@ -406,12 +398,13 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, sha
 
             }
             else{
+                addToWaitQueue(waitQueue, trainId, intersectionId);
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::WAIT);
-                sendLogMessage(std::string("SERVER: ") + intersectionId + " is busy. " + trainId + " DENIED");
             }
         }
         else if (reqType == RequestType::RELEASE) {
-            // Just log it
+            // release the interesction and log it.
+            releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
             sendLogMessage(std::string("SERVER: ") + trainId + " released " + intersectionId + ".");
             
         }
@@ -422,6 +415,13 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, sha
         }
         else {
             std::cerr << "Unknown request type: " << reqType << std::endl;
+        }
+
+        // take log message from queue and send to log file
+        if(serverReceiveLog(logQueue, log)){
+            logMessage(log);
+        }
+        
         }
 
     }
