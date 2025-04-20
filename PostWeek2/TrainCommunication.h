@@ -40,6 +40,7 @@ namespace ResponseType {
     const int GRANT = 1;
     const int WAIT = 2;
     const int DENY = 3;
+    const int LOG = 4;
 }
 
 // Constants per request types
@@ -52,7 +53,6 @@ namespace RequestType {
 // Functions
 
 std::string getTimestamp();
-void sendLogMessage(int logQueue, const std::string& message);
 void logMessage(const std::string& message);
 
 // Setup and Cleanup
@@ -72,7 +72,10 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
 // Server side
 bool serverReceiveRequest(int requestQueue, int logQueue, const char* trainId, const char* intersectionId, int& requestType);
 bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, const char* intersectionId, int responseType);
-void processTrainRequests(int requestQueue, int logQueue, int responseQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
+void processTrainRequests(int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
+
+// Logging side
+bool SendLogMessage(int logQueue, const std::string& message); // log messages
 
 // Logging file and simulated time
 extern std::ofstream logFile;
