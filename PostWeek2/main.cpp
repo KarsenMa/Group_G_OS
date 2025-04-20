@@ -36,12 +36,12 @@ using namespace std;
  *  input: vector of strings for the route
  *  input: requestQueue and responseQueue for message queue
  */
-void child_process(const char *train, vector<string> route, int requestQueue, int responseQueue,
+void child_process(const char *train, vector<string> route, int requestQueue, int responseQueue, int logQueue,
                    shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
 {
     // child_process takes path and train information
     // child_process will use message queue to acquire and release semaphore and mutex locks
-    simulateTrainMovement(train, route, requestQueue, responseQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
+    simulateTrainMovement(train, route, requestQueue, responseQueue, logQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
 
 /* This function forks the child processes for each train
@@ -49,7 +49,7 @@ void child_process(const char *train, vector<string> route, int requestQueue, in
  *  input: requestQueue and responseQueue for message queue
  *  output: vector of child PIDs
  */
-vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue,
+vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue, int logQueue,
                          shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
 {
     vector<pid_t> childPIDS;
@@ -70,7 +70,7 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
             trainID[sizeof(trainID) - 1] = '\0'; // null termination to reduce junk errors
 
             // run the child process in the fork
-            child_process(trainID, iter.second, requestQueue, responseQueue,
+            child_process(trainID, iter.second, requestQueue, responseQueue, logQueue,
                           shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
@@ -295,7 +295,7 @@ int main()
     int requestQueue = 0;
     int responseQueue = 0;
 
-    if (setupMessageQueues(requestQueue, responseQueue) == -1)
+    if (setupMessageQueues(requestQueue, responseQueue, logQueue) == -1)
     {
         cerr << "Main [ERROR]: Could not set up message queues.\n";
         return -1;
@@ -311,13 +311,13 @@ int main()
 
     printIntersectionStatus(shm_ptr, inter_ptr, held);
     // create child processes for each train and store their PIDs
-    vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
+    vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, logQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
 
     // run the server process
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
     
-        processTrainRequests(requestQueue, responseQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
+        processTrainRequests(requestQueue, responseQueue, logQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS)
         { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
@@ -337,7 +337,7 @@ int main()
 
     // after process is finished, cleanup
     // cleanup message queues
-    cleanupMessageQueues(requestQueue, responseQueue);
+    cleanupMessageQueues(requestQueue, responseQueue, logQueue);
 
    // logFile.close(); // close logFile
 
