@@ -75,7 +75,7 @@ bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, co
 void processTrainRequests(int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
 
 // Logging side
-bool SendLogMessage(int logQueue, const std::string& message); // log messages
+bool sendLogMessage(int logQueue, const std::string& message); // log messages
 
 // Logging file and simulated time
 extern std::ofstream logFile;
