@@ -1,0 +1,328 @@
+//---------------------------------------- TrainCommunication.cpp ------------------------------------
+/*
+  Group G
+  Author: Clayton Nunley
+  Email: clayton.nunley@okstate.edu
+  Date: April 2, 2025
+
+  Description: This file implements the ACQUIRE/RELEASE request mechanism and basic train
+  movement simulation without synchronization for the railway simulation group project.
+*/
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <sys/wait.h>
+#include <algorithm>
+#include <sys/file.h>
+#include <fcntl.h>
+
+#include "TrainCommunication.h" // included for semaphore and mutex implementation
+
+// External file for logging
+extern std::ofstream logFile;
+
+// We define these in main.cpp (so only one definition in the whole project):
+extern int simulatedTime; 
+
+// Function to get formatted timestamp
+std::string getTimestamp() {
+    int hours = simulatedTime / 3600;
+    int minutes = (simulatedTime % 3600) / 60;
+    int seconds = simulatedTime % 60;
+    
+    std::stringstream ss;
+    ss << std::setfill('0') << std::setw(2) << hours << ":"
+       << std::setfill('0') << std::setw(2) << minutes << ":"
+       << std::setfill('0') << std::setw(2) << seconds;
+    
+    return ss.str();
+}
+// flock() implementation
+// Function to log a message for console and file
+void logMessage(const std::string& message) {
+    std::string timestamped = "[" + getTimestamp() + "] " + message;
+    std::cout << timestamped << std::endl;
+
+    int fd = open("trains.txt", O_WRONLY | O_APPEND);
+    if (fd == -1) {
+        perror("open");
+        return;
+    }
+
+    if (flock(fd, LOCK_EX) == -1) {
+        perror("flock");
+        close(fd);
+        return;
+    }
+
+    if (logFile.is_open()) {
+        logFile << timestamped << std::endl;
+        logFile.flush();
+    }
+
+    flock(fd, LOCK_UN);
+    close(fd);
+}
+
+// Function to set up message queues
+int setupMessageQueues(int& requestQueue, int& responseQueue) {
+    key_t requestKey = ftok(".", 'R');
+    key_t responseKey = ftok(".", 'S');
+
+    requestQueue = msgget(requestKey, IPC_CREAT | 0666);
+    responseQueue = msgget(responseKey, IPC_CREAT | 0666);
+
+    if (requestQueue == -1 || responseQueue == -1) {
+        std::cerr << "Failed to create message queues: " << strerror(errno) << std::endl;
+        return -1;
+    }
+
+    return 0;
+}
+
+// Function to clean up message queues
+void cleanupMessageQueues(int requestQueue, int responseQueue) {
+    msgctl(requestQueue, IPC_RMID, nullptr);
+    msgctl(responseQueue, IPC_RMID, nullptr);
+}
+
+// Function to send an ACQUIRE request
+bool trainSendAcquireRequest(int requestQueue, const char* trainId, const char* intersectionId) {
+    RequestMsg msg;
+    msg.mtype = RequestType::ACQUIRE;
+    strncpy(msg.train_id, trainId, sizeof(msg.train_id) - 1);
+    msg.train_id[sizeof(msg.train_id) - 1] = '\0';
+
+    strncpy(msg.intersection_id, intersectionId, sizeof(msg.intersection_id) - 1);
+    msg.intersection_id[sizeof(msg.intersection_id) - 1] = '\0';
+
+    if (msgsnd(requestQueue, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+        std::cerr << "Failed to send ACQUIRE request: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    logMessage(std::string(trainId) + ": Sent ACQUIRE request for " + intersectionId + ".");
+    return true;
+}
+
+// Function to send a RELEASE request
+bool trainSendReleaseRequestExtended(int requestQueue, const char* trainId, const char* intersectionId, 
+    shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, int *held) {
+
+    RequestMsg msg;
+    msg.mtype = RequestType::RELEASE;
+    strncpy(msg.train_id, trainId, sizeof(msg.train_id) - 1);
+    msg.train_id[sizeof(msg.train_id) - 1] = '\0';
+    strncpy(msg.intersection_id, intersectionId, sizeof(msg.intersection_id) - 1);
+    msg.intersection_id[sizeof(msg.intersection_id) - 1] = '\0';
+
+    if (msgsnd(requestQueue, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+        std::cerr << "Failed to send RELEASE request: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+    logMessage(std::string(trainId) + ": Sent RELEASE request for " + intersectionId + ".");
+    return true;
+}
+
+bool trainSendDoneMsg(int requestQueue, const char* trainId) {
+    RequestMsg msg;
+    msg.mtype = RequestType::DONE;
+    strncpy(msg.train_id, trainId, sizeof(msg.train_id) - 1);
+    msg.train_id[sizeof(msg.train_id) - 1] = '\0';
+
+    if (msgsnd(requestQueue, &msg, sizeof(msg) - sizeof(long), 0) == -1) {
+        std::cerr << "Failed to send DONE message: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+// Function for trains to wait for a response from the server
+int trainWaitForResponse(int responseQueue, const char* trainId) {
+    ResponseMsg msg;
+
+    std::string tempID = std::string(trainId);
+    if (tempID.size() <= 5 || !std::all_of(tempID.begin() + 5, tempID.end(), ::isdigit)) {
+        std::cerr << "Invalid train ID format: " << trainId << std::endl;
+        return -1;
+    }
+    long trainIdLong = std::stol(tempID.substr(5));
+
+    if (msgrcv(responseQueue, &msg, sizeof(msg) - sizeof(long), trainIdLong, 0) == -1) {
+        std::cerr << "Failed to receive response: " << strerror(errno) << std::endl;
+        return -1;
+    }
+
+    std::string responseTypeStr;
+    switch (msg.response_type) {
+        case ResponseType::GRANT: responseTypeStr = "GRANT"; break;
+        case ResponseType::WAIT: responseTypeStr = "WAIT"; break;
+        case ResponseType::DENY: responseTypeStr = "DENY"; break;
+        default: responseTypeStr = "UNKNOWN";
+    }
+
+    logMessage(std::string(trainId) + ": Received " + responseTypeStr + " for " + msg.intersection_id + ".");
+
+    return msg.response_type;
+}
+
+// Function to simulate train movement
+void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, 
+                           int requestQueue, int responseQueue, shared_mem_t *shm,
+                           Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
+
+    for (const auto& intersection : route) {
+        const char* tempIntersection = intersection.c_str();
+
+        if (!trainSendAcquireRequest(requestQueue, trainId, tempIntersection)) {
+            std::cerr << "Train " << trainId << " failed to send ACQUIRE request." << std::endl;
+            return;
+        }
+
+        int response;
+        while ((response = trainWaitForResponse(responseQueue, trainId)) != ResponseType::GRANT) {
+            if (response == ResponseType::WAIT) {
+                logMessage(std::string(trainId) + ": Waiting for " + intersection + "...");
+                sleep(1);
+                simulatedTime++;
+            } else if (response == ResponseType::DENY) {
+                logMessage(std::string(trainId) + ": DENIED access to " + intersection + ".");
+                return;
+            } else if (response == -1) {
+                std::cerr << "Train " << trainId << " failed to receive response." << std::endl;
+                return;
+            }
+        }
+
+        logMessage(std::string(trainId) + ": Acquired " + intersection + ". Proceeding...");
+
+        int crossingTime = 2 + (rand() % 4);
+        sleep(crossingTime);
+        simulatedTime += crossingTime;
+
+        if (!trainSendReleaseRequestExtended(requestQueue, trainId, tempIntersection, shm, inter_ptr, sem, mutex, held)) {
+            std::cerr << "Train " << trainId << " failed to send RELEASE request." << std::endl;
+            return;
+        }
+    }
+
+    logMessage(std::string(trainId) + ": Completed route.");
+    trainSendDoneMsg(requestQueue, trainId);
+}
+
+// Server side handling of requests
+bool serverReceiveRequest(int requestQueue, char* trainId, char* intersectionId, int& requestType) {
+    RequestMsg req;
+
+    if (msgrcv(requestQueue, &req, sizeof(req) - sizeof(long), 0, 0) == -1) {
+        if (errno == EINTR) return false;
+        std::cerr << "Failed to receive request: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    strncpy(trainId, req.train_id, sizeof(req.train_id) - 1);
+    trainId[sizeof(req.train_id) - 1] = '\0';
+    strncpy(intersectionId, req.intersection_id, sizeof(req.intersection_id) - 1);
+    intersectionId[sizeof(req.intersection_id) - 1] = '\0';
+    requestType = req.mtype;
+
+    simulatedTime++;
+    return true;
+}
+
+bool serverSendResponse(int responseQueue, const char* trainId, const char* intersectionId, int responseType) {
+    ResponseMsg resp;
+
+    std::string tempID = std::string(trainId);
+    if (tempID.size() <= 5 || !std::all_of(tempID.begin() + 5, tempID.end(), ::isdigit)) {
+        std::cerr << "Invalid train ID format: " << trainId << std::endl;
+        return false;
+    }
+    long trainIdLong = std::stol(tempID.substr(5));
+
+    resp.mtype = trainIdLong;
+    resp.response_type = responseType;
+    strncpy(resp.intersection_id, intersectionId, sizeof(resp.intersection_id) - 1);
+    resp.intersection_id[sizeof(resp.intersection_id) - 1] = '\0';
+
+    if (msgsnd(responseQueue, &resp, sizeof(resp) - sizeof(long), 0) == -1) {
+        std::cerr << "Failed to send response: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    std::string responseTypeStr;
+    switch (responseType) {
+        case ResponseType::GRANT: responseTypeStr = "GRANTED"; break;
+        case ResponseType::WAIT: responseTypeStr = "WAIT"; break;
+        case ResponseType::DENY: responseTypeStr = "DENIED"; break;
+        default: responseTypeStr = "UNKNOWN";
+    }
+
+    if (responseType == ResponseType::GRANT) {
+        logMessage(std::string("SERVER: ") + responseTypeStr + " " + intersectionId + " to " + trainId + ".");
+    } else if (responseType == ResponseType::WAIT) {
+        logMessage(std::string("SERVER: ") + intersectionId + " is busy. " + trainId + " added to wait queue.");
+    }
+    simulatedTime++;
+    return true;
+}
+
+// Function to unlock the intersection
+void unlockIntersection(shared_mem_t* shm, Intersection* inter_ptr, sem_t* sem, 
+                        pthread_mutex_t* mutex, const char* intersectionId, const char* trainId, int* held) {
+    for (int i = 0; i < shm->num_intersections; i++) {
+        if (strcmp(inter_ptr[i].id, intersectionId) == 0) {
+            if (strcmp(inter_ptr[i].locked_by, trainId) == 0) {
+                inter_ptr[i].locked_by[0] = '\0';  // Mark as unlocked
+                held[i] = 0;  // Update held status
+
+                sem_post(&sem[i]);  // Example: releasing semaphore if it's being used
+                pthread_mutex_unlock(&mutex[i]); // Example: unlocking mutex
+                logMessage(std::string(trainId) + ": Released " + intersectionId + " intersection.");
+                return;
+            }
+        }
+    }
+}
+
+// Function to process train requests
+void processTrainRequests(int requestQueue, int responseQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
+    char trainId[16];
+    char intersectionId[32];
+    int reqType;
+    int trainsDone = 0;
+
+    while (trainsDone < shm->num_trains) {
+        if (!serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) continue;
+
+        if (reqType == RequestType::ACQUIRE) {
+            if (checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::GRANT);
+                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+            } else {
+                serverSendResponse(responseQueue, trainId, intersectionId, ResponseType::DENY);
+            }
+        } else if (reqType == RequestType::RELEASE) {
+            logMessage("SERVER: " + std::string(trainId) + " released " + intersectionId + ".");
+            unlockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);  // Corrected the function call here
+        } else if (reqType == RequestType::DONE) {
+            trainsDone++;
+            logMessage("SERVER: " + std::string(trainId) + " completed its route.");
+        } else {
+            std::cerr << "Unknown request type: " << reqType << std::endl;
+        }
+    }
+}
