@@ -110,7 +110,7 @@ void cleanupMessageQueues(int requestQueue, int responseQueue) {
 // TO DO: create function to send log messages to server (follow message send format)
 bool sendLogMessage(int logQueue, const std::string& message) { 
     RequestMsg msg;
-    msg.mtype = RequestType::LOG; // Request type for logging
+    msg.mtype = ResponseType::LOG; // Response type for logging
     strncpy(msg.train_id, message.c_str(), sizeof(msg.train_id));
     msg.intersection_id[0] = '\0'; // when no intersection needed
 
