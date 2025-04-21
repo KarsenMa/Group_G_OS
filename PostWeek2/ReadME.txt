@@ -46,6 +46,7 @@ Damian:
 - MutexThread.h
 - IPCSemaphore.cpp
 - IPCSemaphore.h
+- TrainCommunication.h
 
 Eric: 
 - trainFiles.cpp
