@@ -51,6 +51,8 @@ Damian:
 
 Eric: 
 - trainFiles.cpp
+- DeadlockResolution.cpp
+- DeadlockResolution.h
 
 Karsen: 
 - Forking_Trains.cpp
