@@ -57,27 +57,26 @@ string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr
 * input: shared memory pointer, intersection pointer, intersection ID, train ID, waiting matrix pointer
 * output: returns true if the train was added to the wait matrix, false otherwise
 */
-bool addtoWaitMatrix(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *waiting){
+bool addtoWaitMatrix(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, int trainID, int *waiting){
     bool added = false;
-    int trainIDNum = stoi(string(trainID).substr(5)); // convert string to integer
 
     // get intersection in shared memory
     Intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
     
     // check if intersection is locked in shared memory
-    int held_num = waiting[trainIDNum * shm->num_intersections + intersection->index];
-    if(held_num == 0){
+    int waiting_num = waiting[trainID * shm->num_intersections + intersection->index];
+    if(waiting_num == 0){
         // if the intersection is 0 in the held matrix it is not locked
-        waiting[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+        waiting[trainID * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
         added = true;
     }
     
-    else if(held_num == 1){
+    else if(waiting_num == 1){
         // the intersection is already held by this train
         added = false;
     }
     else{ 
-        cerr << "[ERROR]: Held matrix error at " << trainID << " " << intersectionID << "\nHeld Num: " << held_num << endl;
+        cerr << "addToWaitMatrix [ERROR]: Waiting matrix error at " << trainID << " " << intersectionID << "\nwaiting num: " << waiting_num << endl;
     }
 
     return added;
@@ -136,8 +135,9 @@ bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, co
         // the intersection is not held by this train
         locked = false;
     }
+
     else{ 
-        cerr << "[ERROR]: Held matrix error at " << trainID << " " << intersectionID << "\nHeld Num: " << held_num << endl;
+        cerr << "checkIntersectionLockbyTrain [ERROR]: Held matrix error at " << trainID << " " << intersectionID << "\nHeld Num: " << held_num << endl;
     }
 
     return locked;
@@ -150,7 +150,7 @@ bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, co
 * intersection ID, train ID, and held matrix pointer
 * returns true if lock was able to be acquired
 */
-bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held){
+bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held, int *waiting){
     bool locked = false; // set default to false to protect from errors
     int trainIDNum = stoi(string(trainID).substr(5)); // convert string to integer
 
@@ -168,6 +168,7 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
 
             // add train ID to intersection in resource allocation table
             held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+            waiting[trainIDNum * shm->num_intersections + intersection->index] = 0;
             locked = true;
         }
 
@@ -177,6 +178,7 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
 
             // add train ID to intersection in resource allocation table
             held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+            waiting[trainIDNum * shm->num_intersections + intersection->index] = 0; // set waiting matrix to 0
             locked = true;
         }
 
@@ -219,8 +221,9 @@ bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem,
             cerr << "releaseIntersection [ERROR]: " << intersectionID << "invalid intersection type." << endl;
         }
 
-        // remove train ID from intersection in resource allocation table
+        // remove train ID from intersection in resource allocation table and set to 0
         held[trainIDNum * shm->num_intersections + intersection->index] = 0; // set held matrix to 0
+
     }
     
     // check intersection type

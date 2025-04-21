@@ -388,7 +388,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
             // Grant the request
             if(!checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::GRANT);
-                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held, waiting);
                 
             }
             else{
@@ -409,7 +409,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
             // Grant the request
             if(!checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::GRANT);
-                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
+                lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held, waiting);
 
             }
             else{

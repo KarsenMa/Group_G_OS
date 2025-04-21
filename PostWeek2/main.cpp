@@ -329,11 +329,12 @@ int main()
 
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
-
+    printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
     // run the server process
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
-    
+        printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
+        
         detectAndResolveDeadlock(shm_ptr, intersections); // pass in shared memory pointer and vector of intersections
 
         processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex, waiting); // process train requests

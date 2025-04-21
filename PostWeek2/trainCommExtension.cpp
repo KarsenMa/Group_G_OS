@@ -86,7 +86,7 @@ bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersection
     waitMsg.intersection_id[sizeof(waitMsg.intersection_id) - 1] = '\0';
 
     // TO DO: add train to wait matrix
-    addtoWaitMatrix(shm, inter_ptr, waitMsg.train_id, waitMsg.intersection_id, waiting);
+    addtoWaitMatrix(shm, inter_ptr, intersectionId, int(trainIdLong), waiting);
 
     // send the wait message to the wait queue
     if(msgsnd(waitQueue, &waitMsg, sizeof(waitMsg) - sizeof(long), 0) == -1) {
