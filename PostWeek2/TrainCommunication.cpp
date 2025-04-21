@@ -404,7 +404,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
 
         if(reqType == RequestType::ACQUIRE) {
             // Grant the request
-            if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
+            if(!checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::GRANT);
                 lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
 

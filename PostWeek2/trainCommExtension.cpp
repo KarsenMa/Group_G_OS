@@ -100,7 +100,9 @@ bool processWaitQueue(int waitQueue, char* trainId, char* intersectionId) {
 
     // Receive wait message
     if (msgrcv(waitQueue, &waitMsg, sizeof(waitMsg) - sizeof(long), 0, IPC_NOWAIT) == -1) {
-        std::cerr << "processWaitQueue [ERROR]: Failed to receive wait message: " << strerror(errno) << std::endl;
+        if (errno != ENOMSG) {
+            std::cerr << "processWaitQueue [ERROR]: Failed to receive wait message: " << strerror(errno) << std::endl;
+        }
         return false;
     }
 
