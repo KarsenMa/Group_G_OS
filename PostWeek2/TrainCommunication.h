@@ -5,7 +5,8 @@ Email: damian.silvar@okstate.edu
 Date: 04-13-2025
 */
 
-
+#ifndef TRAIN_COMMUNICATION_H
+#define TRAIN_COMMUNICATION_H
 
 #include <string>
 #include <vector>
@@ -50,8 +51,8 @@ std::string getTimestamp();
 void logMessage(const std::string& message);
 
 // Setup and Cleanup
-int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue);
-void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue);
+int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue, int& waitQueue);
+void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue, int waitQueue);
 
 // Train side
 bool trainSendAcquireRequest(int requestQueue, int logQueue, const char* trainId, const char* intersectionId);
@@ -60,13 +61,13 @@ bool trainSendReleaseRequest(int requestQueue, int logQueue, const char* trainId
 // **Function included in trainCommExtension** bool trainSendDoneMsg(int requestQueue, const char* trainId);
 
 int trainWaitForResponse(int responseQueue, int logQueue, const char* trainId, const char* intersectionId);
-void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, int requestQueue, int responseQueue, shared_mem_t *shm,
+void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm,
      Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
 
 // Server side
-bool serverReceiveRequest(int requestQueue, int logQueue, const char* trainId, const char* intersectionId, int& requestType);
+bool serverReceiveRequest(int requestQueue, const char* trainId, const char* intersectionId, int& requestType);
 bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, const char* intersectionId, int responseType);
-void processTrainRequests(int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
+void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
 
 // Logging side
 bool sendLogMessage(int logQueue, const std::string& message); // log messages

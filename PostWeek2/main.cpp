@@ -25,6 +25,7 @@
 #include "sync.h"
 #include "Resource_Allocation.h"
 #include "TrainCommunication.h"
+#include "trainCommExtension.h"
 #include "DeadlockDetection.h"
 
 using namespace std;
@@ -37,11 +38,12 @@ using namespace std;
  *  input: requestQueue and responseQueue for message queue
  */
 void child_process(const char *train, vector<string> route, int requestQueue, int responseQueue, int logQueue,
-                   shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
+                       int waitQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
 {
     // child_process takes path and train information
     // child_process will use message queue to acquire and release semaphore and mutex locks
-    simulateTrainMovement(train, route, requestQueue, responseQueue, logQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
+    // std::cout << "Child process for train: " << train << "\nPID: " << getpid() << std::endl;
+    simulateTrainMovement(train, route, requestQueue, responseQueue, logQueue, waitQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
 
 /* This function forks the child processes for each train
@@ -50,13 +52,13 @@ void child_process(const char *train, vector<string> route, int requestQueue, in
  *  output: vector of child PIDs
  */
 vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int requestQueue, int responseQueue, int logQueue,
-                         shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
+                         int waitQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *semaphore, pthread_mutex_t *mutex)
 {
     vector<pid_t> childPIDS;
     for (auto iter : trains)
     {
         pid_t pid = fork();
-        // cout << "Forking process for train: " << iter.first << "\nPID: " << getpid() << endl;
+        
         if (pid == -1)
         {
             cerr << "forkTrains [ERROR]: Fork failed" << endl;
@@ -65,12 +67,13 @@ vector<pid_t> forkTrains(unordered_map<string, vector<string>> trains, int reque
         }
         else if (pid == 0)
         { // Child process
+            // cout << "Forked process for train: " << iter.first << "\nPID: " << getpid() << endl;
             char trainID[16];
             strncpy(trainID, iter.first.c_str(), sizeof(trainID) - 1);
             trainID[sizeof(trainID) - 1] = '\0'; // null termination to reduce junk errors
 
             // run the child process in the fork
-            child_process(trainID, iter.second, requestQueue, responseQueue, logQueue,
+            child_process(trainID, iter.second, requestQueue, responseQueue, logQueue, waitQueue,
                           shm, inter_ptr, held, semaphore, mutex);
             exit(0); // Child process exits after running
         }
@@ -294,8 +297,10 @@ int main()
     // setup message queues
     int requestQueue = 0;
     int responseQueue = 0;
+    int logQueue = 0;
+    int waitQueue = 0;
 
-    if (setupMessageQueues(requestQueue, responseQueue, logQueue) == -1)
+    if (setupMessageQueues(requestQueue, responseQueue, logQueue, waitQueue) == -1)
     {
         cerr << "Main [ERROR]: Could not set up message queues.\n";
         return -1;
@@ -309,15 +314,14 @@ int main()
     logMessage("SERVER: Initialized intersections");
     cout << endl;
 
-    printIntersectionStatus(shm_ptr, inter_ptr, held);
     // create child processes for each train and store their PIDs
-    vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, logQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
+    vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
 
     // run the server process
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
     
-        processTrainRequests(requestQueue, responseQueue, logQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
+        processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS)
         { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
@@ -337,7 +341,7 @@ int main()
 
     // after process is finished, cleanup
     // cleanup message queues
-    cleanupMessageQueues(requestQueue, responseQueue, logQueue);
+    cleanupMessageQueues(requestQueue, responseQueue, logQueue, waitQueue);
 
    // logFile.close(); // close logFile
 

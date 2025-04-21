@@ -9,6 +9,13 @@
 #ifndef TRAIN_COMM_EXTENSION_H
 #define TRAIN_COMM_EXTENSION_H
 
+#include <cstring>
+#include <iostream>
+#include <sys/msg.h>
+
+#include "shared_Mem.h"
+#include "TrainCommunication.h"
+
 // Message structure for logging and wait queueing
 struct LogMsg { 
     long mtype; 
@@ -16,7 +23,7 @@ struct LogMsg {
 };
 
 struct WaitQueueMsg {
-    // long mtype; 
+    long mtype; 
     char train_id[20]; 
     char intersection_id[20];
 };
@@ -27,8 +34,8 @@ bool trainSendDoneMsg(int requestQueue, const char* trainId);
 
 bool serverReceiveLog(int logQueue, char* log);
 
-void addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId);
+bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId);
 
-bool processWaitQueue(int waitQueue, const char* trainId, const char* intersectionId, int logQueue, shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex);
+bool processWaitQueue(int waitQueue,  char* trainId, char* intersectionId);
 
 #endif

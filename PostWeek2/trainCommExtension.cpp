@@ -7,6 +7,13 @@
     message to the server.
 */
 
+#include <cstring>
+#include <iostream>
+#include <sys/msg.h>
+
+#include "shared_Mem.h"
+#include "trainCommExtension.h"
+#include "TrainCommunication.h"
 
 
 
@@ -88,11 +95,11 @@ bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersection
 * this functions takes the waitQueue, the train ID and the intersection ID as input.
 * it returns a bool that indicates if the wait message was received.
 */
-bool processWaitQueue(int waitQueue, const char* trainId, const char* intersectionId) {
+bool processWaitQueue(int waitQueue, char* trainId, char* intersectionId) {
     WaitQueueMsg waitMsg;
 
     // Receive wait message
-    if (msgrcv(waitQueue, &waitMsg, sizeof(waitMsg) - sizeof(long), 0, 0) == -1) {
+    if (msgrcv(waitQueue, &waitMsg, sizeof(waitMsg) - sizeof(long), 0, IPC_NOWAIT) == -1) {
         std::cerr << "processWaitQueue [ERROR]: Failed to receive wait message: " << strerror(errno) << std::endl;
         return false;
     }

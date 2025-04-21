@@ -26,7 +26,8 @@
 #include <algorithm>
 #include <sys/file.h>
 
-// **NO LONGER USED ** #include "TrainCommunication.h" // included for semaphore and mutex implementation
+#include "shared_Mem.h"
+#include "TrainCommunication.h"
 #include "trainCommExtension.h" // included for logging and wait queueing
 
 
@@ -52,7 +53,7 @@ std::string getTimestamp() {
 }
 
 // Function to log a message to both console and file
-void LogMessage(const std::string& message) {
+void logMessage(const std::string& message) {
     std::string timestamped = "[" + getTimestamp() + "] " + message + "\n";
     std::cout << timestamped;
     char fileName[] = "data/simulation.log";
@@ -224,7 +225,7 @@ int trainWaitForResponse(int responseQueue, int logQueue, const char* trainId) {
 
 // Function to simulate train movement
 void simulateTrainMovement(const char* trainId, const std::vector<std::string>& route, 
-                           int requestQueue, int responseQueue, int waitQueue, int logQueue, shared_mem_t *shm,
+                           int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm,
                            Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) 
 {
     // Iterate through each intersection in the route
@@ -270,7 +271,7 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
         simulatedTime += crossingTime; // Update simulated time
         
         // Release the intersection
-        if (!trainSendReleaseRequestExtended(requestQueue, trainId, tempIntersection, shm, inter_ptr, sem, mutex, held)) {
+        if (!trainSendReleaseRequestExtended(requestQueue, logQueue, trainId, tempIntersection, shm, inter_ptr, sem, mutex, held)) {
             std::cerr << "Train " << trainId << " failed to send RELEASE request." << std::endl;
             return;
         }
@@ -311,7 +312,7 @@ bool serverReceiveRequest(int requestQueue, char* trainId, char* intersectionId,
 
 
 // Function to send a response
-bool serverSendResponse(int responseQueue, int logQueue, int waitQueue, const char* trainId, 
+bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, 
                         const char* intersectionId, int responseType) 
 {
     ResponseMsg resp;
@@ -364,41 +365,43 @@ bool serverSendResponse(int responseQueue, int logQueue, int waitQueue, const ch
 }
 
 // function to handle train requests (acquire or release or deny access to intersection)
-void processTrainRequests(int requestQueue, int responseQueue, int logQueue, shared_mem_t *shm, 
+void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm, 
     Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
     char trainId[16];
     char intersectionId[32];
     int reqType;
     int trainsDone = 0;
     char log[100]; // char array to hold log messages
+    bool waitQueueProcessed = false;
 
     // Loop until msgrcv fails (e.g. when queue removed or signaled)
     while (trainsDone < shm->num_trains) {
-        
+        waitQueueProcessed = false;
+
         if(processWaitQueue(waitQueue, trainId, intersectionId)) {
             // Process wait queue
             // waiting trains are always trying to acquire the intersection
 
             // Grant the request
-            if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
+            if(!checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::GRANT);
                 lockIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
-
+                
             }
             else{
                 addToWaitQueue(waitQueue, trainId, intersectionId);
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::WAIT);
+                break;
             }
-
-            // take log message from queue and send to log file
-            if(serverReceiveLog(logQueue, log)){
-                logMessage(log);
-            }
-
+            waitQueueProcessed = true;
         }
-        else {
 
-        serverReceiveRequest(requestQueue, logQueue, trainId, intersectionId, reqType);
+        if(!waitQueueProcessed){
+            if(!serverReceiveRequest(requestQueue, trainId, intersectionId, reqType)) {
+                std::cerr << "processTrainRequests [ERROR]: Failed to receive request." << std::endl;
+                continue;
+            }
+
         if(reqType == RequestType::ACQUIRE) {
             // Grant the request
             if(checkIntersectionFull(shm, inter_ptr, intersectionId, held)) {
@@ -414,24 +417,25 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, sha
         else if (reqType == RequestType::RELEASE) {
             // release the interesction and log it.
             releaseIntersection(shm, inter_ptr, sem, mutex, intersectionId, trainId, held);
-            sendLogMessage(std::string("SERVER: ") + trainId + " released " + intersectionId + ".");
+            sendLogMessage(logQueue, std::string("SERVER: ") + trainId + " released " + intersectionId + ".");
             
         }
         else if(reqType == RequestType::DONE) {
             // Log the completion
             trainsDone++;
-            sendLogMessage(std::string("SERVER: ") + trainId + " completed its route.");
+            sendLogMessage(logQueue, std::string("SERVER: ") + trainId + " completed its route.");
         }
         else {
             std::cerr << "Unknown request type: " << reqType << std::endl;
         }
 
+        
+        }
         // take log message from queue and send to log file
         if(serverReceiveLog(logQueue, log)){
             logMessage(log);
         }
         
-        }
 
     }
 }

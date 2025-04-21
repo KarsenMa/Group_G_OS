@@ -59,7 +59,7 @@ string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr
 * returns true if intersection is open
 */
 bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, int *held){
-    bool unlocked = true;
+    bool full = false;
 
     // get intersection in shared memory
     Intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
@@ -73,15 +73,15 @@ bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const cha
         }
 
         if(max == 0){
-            unlocked = false;
+            full = true;
             break;
         }
         else if(max > 0){
-            unlocked = true;
+            full = false;
         }
     }
 
-    return unlocked;
+    return full;
 }
 
 /*
