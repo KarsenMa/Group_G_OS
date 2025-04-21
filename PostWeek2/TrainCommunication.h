@@ -35,7 +35,6 @@ namespace ResponseType {
     const int GRANT = 1;
     const int WAIT = 2;
     const int DENY = 3;
-    const int LOG = 4;
 }
 
 // Constants per request types

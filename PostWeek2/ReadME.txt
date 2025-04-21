@@ -22,6 +22,7 @@ Best practice during testing:
 Before closing your session on csx server, check to make sure no shared memory objects are leftover
 from aborted processes. 
 Run 
+
 ls -l /dev/shm/sharedMemory3
 If sharedMemory3 exists and is owned by you, then remove it.
 rm /dev/shm/sharedMemory3
@@ -31,6 +32,7 @@ This will ensure you do not have further issues with the shared memory.
 
 
 Files written by 
+
 Clayton: 
 - TrainCommunication.cpp
 - DeadlockDetection.cpp
@@ -40,6 +42,8 @@ Cosette:
 - shared_Mem.h
 - sync.cpp
 - sync.h
+- trainCommExtension.cpp
+- trainCommExtension.h
 
 Damian: 
 - MutexThread.cpp
@@ -49,6 +53,8 @@ Damian:
 
 Eric: 
 - trainFiles.cpp
+- DeadlockResolution.cpp
+- DeadlockResolution.h
 
 Karsen: 
 - Forking_Trains.cpp

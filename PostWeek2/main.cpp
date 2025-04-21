@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <sstream>
 #include <cstring>
+#include <signal.h>
 
 #include "shared_Mem.h"
 #include "sync.h"
@@ -31,6 +32,12 @@
 using namespace std;
 
 #include <algorithm>
+
+// setup message queues
+int requestQueue = 0;
+int responseQueue = 0;
+int logQueue = 0;
+int waitQueue = 0;
 
 /* This function performs the child process functions
  *  input: train name
@@ -45,6 +52,13 @@ void child_process(const char *train, vector<string> route, int requestQueue, in
     // std::cout << "Child process for train: " << train << "\nPID: " << getpid() << std::endl;
     simulateTrainMovement(train, route, requestQueue, responseQueue, logQueue, waitQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
+
+// cleanup message queues on failure
+void cleanUpOnFail(int){ 
+    cleanupMessageQueues(requestQueue, responseQueue, logQueue, waitQueue);
+    exit(1);
+}
+
 
 /* This function forks the child processes for each train
  *  input: unordered map of trains and their routes
@@ -180,13 +194,15 @@ void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *he
 // ofstream logFile;      // For logging
 int simulatedTime = 0; // For simulated time tracking
 
+
+
 /* main handles server side, sets up message queues, forks child processes
  * sets up shared memory, logging.
  */
 int main()
 {
     pid_t serverPID = getpid(); // get server process ID
-
+    
     // Parse intersections and trains files into usable format
     vector<Intersection> intersections;
     unordered_map<string, vector<string>> trains;
@@ -247,11 +263,11 @@ int main()
 
     // create shared memory using number of intersections to set size of shared memory
     shared_Mem mem;
-
+    
     // use calculated number of intersections for mutex and semaphore to provide size for shared memory
     void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
     shared_mem_t *shm_ptr = (shared_mem_t *)ptr;
-
+    signal(SIGINT, cleanUpOnFail);
     char *mem_struct = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
 
     int *sem_val_block = reinterpret_cast<int *>(mem_struct);
@@ -294,11 +310,7 @@ int main()
         j++;
     }
 
-    // setup message queues
-    int requestQueue = 0;
-    int responseQueue = 0;
-    int logQueue = 0;
-    int waitQueue = 0;
+   
 
     if (setupMessageQueues(requestQueue, responseQueue, logQueue, waitQueue) == -1)
     {

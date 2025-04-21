@@ -93,6 +93,8 @@ int setupMessageQueues(int& requestQueue, int& responseQueue, int& logQueue, int
     responseQueue = msgget(responseKey, IPC_CREAT | 0666);
     logQueue = msgget(logKey, IPC_CREAT | 0666);
     waitQueue = msgget(waitKey, IPC_CREAT | 0666);
+
+    
     
     if (requestQueue == -1 || responseQueue == -1 || logQueue == -1) {
         std::cerr << "Failed to create message queues: " << strerror(errno) << std::endl;
@@ -117,12 +119,13 @@ void cleanupMessageQueues(int requestQueue, int responseQueue, int logQueue, int
 // Damian
 // TO DO: create function to send log messages to server (follow message send format)
 bool sendLogMessage(int logQueue, const std::string& message) { 
-    RequestMsg msg;
-    msg.mtype = ResponseType::LOG; // Response type for logging
-    strncpy(msg.train_id, message.c_str(), sizeof(msg.train_id));
-    msg.intersection_id[0] = '\0'; // when no intersection needed
+    LogMsg msg;
+    msg.mtype = 1; // Response type for logging
+   
+    strncpy(msg.message, message.c_str(), sizeof(msg.message) - 1);
+    msg.message[sizeof(msg.message) - 1] = '\0'; 
 
-    if (msgsnd(logQueue, &msg, sizeof(RequestMsg) - sizeof(long), 0) == -1) {
+    if (msgsnd(logQueue, &msg, sizeof(LogMsg) - sizeof(long), 0) == -1) {
         perror("Failed to send log message");
         return false;
     }
@@ -371,7 +374,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
     char intersectionId[32];
     int reqType;
     int trainsDone = 0;
-    char log[100]; // char array to hold log messages
+    char log[100] = "\0";
     bool waitQueueProcessed = false;
 
     // Loop until msgrcv fails (e.g. when queue removed or signaled)

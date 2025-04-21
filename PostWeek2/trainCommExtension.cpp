@@ -47,7 +47,7 @@ bool serverReceiveLog(int logQueue, char* log) {
     LogMsg logMsg;
 
     // Receive log message
-    if (msgrcv(logQueue, &logMsg, sizeof(logMsg) - sizeof(long), 0, 0) == -1) {
+    if (msgrcv(logQueue, &logMsg, sizeof(LogMsg) - sizeof(long), 0, 0) == -1) {
         if(errno == EINTR) {
             // Interrupted by signal
             return false;
@@ -56,9 +56,11 @@ bool serverReceiveLog(int logQueue, char* log) {
         return false;
     }
     // copy the log message to the char buffer
+    std::cout << "Received log message of length: " << strlen(logMsg.message) << std::endl;
+    std::cout << "Debug at serverReceiveLog : " << logMsg.message << std::endl;
     strncpy(log, logMsg.message, sizeof(logMsg.message) - 1);
     log[sizeof(logMsg.message) - 1] = '\0';
-
+    
     return true;
 }
 
