@@ -39,6 +39,75 @@ int responseQueue = 0;
 int logQueue = 0;
 int waitQueue = 0;
 
+shared_mem_t* shm_ptr = nullptr;
+/* From Resouce ALlocation */
+/* Print Resource ALlocation Table */
+void printIntersectionStatus1(shared_mem_t *shm)
+{
+
+    char *mem_struct = reinterpret_cast<char *>(shm) + sizeof(shared_mem_t);
+    int *sem_val_block = reinterpret_cast<int *>(mem_struct);
+    pthread_mutex_t *mutex = reinterpret_cast<pthread_mutex_t *>(sem_val_block + shm->num_sem);
+    sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + shm->num_mutex);
+    Intersection *inter_ptr = reinterpret_cast<Intersection *>(semaphore + shm->num_sem);
+    int *held = reinterpret_cast<int *>(inter_ptr + shm->num_intersections);
+    int *waiting = reinterpret_cast<int *>(held + (shm->num_trains * shm->num_intersections));
+
+    /* Columns for Resource Allocation Table */
+    cout << left << setw(15) << "IntersectionID"
+         << setw(10) << "Type"
+         << setw(10) << "Capacity"
+         << setw(12) << "Lock State"
+         << "Holding Trains" << endl;
+
+    /* Seperate columns from data */
+    cout << string(60, '_') << endl;
+
+    /* Loop through intersections */
+    for (int i = 0; i < shm->num_intersections; ++i)
+    {
+        /* Lock is not held */
+        string lockState = "Unlocked";
+
+        /* Chech Lock State */
+        for (int t = 0; t < shm->num_trains; ++t)
+        {
+            if (held[t * shm->num_intersections + i] == 1) /* find intersections held by train */
+            {
+                /* If train holds intersection set locked */
+                lockState = "Locked";
+                break;
+            }
+        }
+
+        /* Intersection data */
+        cout << left << setw(15) << inter_ptr[i].name /* name */
+             << setw(10) << inter_ptr[i].type         /* lock type */
+             << setw(10) << inter_ptr[i].capacity     /* inersection capacity */
+             << setw(12) << lockState                     /* Locked/Unlocked */
+             << "[";
+
+        bool one = true;
+
+        /* Loop for printing trains that hold lock on specific intersection */
+        for (int t = 0; t < shm->num_trains; ++t)
+        {
+            /* True value in held matrix */
+            if (held[t * shm->num_intersections + i] == 1)
+            {
+                if (!one) /* Multiple elements separate with comma */
+                    cout << ", ";
+                cout << "Train" << t; /* Trains Id */
+                one = false;
+            }
+        }
+
+        cout << "]" << endl;
+    }
+}
+
+
+
 /* This function performs the child process functions
  *  input: train name
  *  input: vector of strings for the route
@@ -49,6 +118,7 @@ void child_process(const char *train, vector<string> route, int requestQueue, in
 {
     // child_process takes path and train information
     // child_process will use message queue to acquire and release semaphore and mutex locks
+    //printIntersectionStatus1(shm);
     // std::cout << "Child process for train: " << train << "\nPID: " << getpid() << std::endl;
     simulateTrainMovement(train, route, requestQueue, responseQueue, logQueue, waitQueue, shm, inter_ptr, held, semaphore, mutex); // simulate train movement
 }
@@ -133,66 +203,9 @@ void parseTrains(const string &filename, unordered_map<string, vector<string>> &
     }
 }
 
-/* From Resouce ALlocation */
-/* Print Resource ALlocation Table */
-void printIntersectionStatus(shared_mem_t *shm, Intersection *inter_ptr, int *held)
-{
-    /* Columns for Resource Allocation Table */
-    cout << left << setw(15) << "IntersectionID"
-         << setw(10) << "Type"
-         << setw(10) << "Capacity"
-         << setw(12) << "Lock State"
-         << "Holding Trains" << endl;
-
-    /* Seperate columns from data */
-    cout << string(60, '_') << endl;
-
-    /* Loop through intersections */
-    for (int i = 0; i < shm->num_intersections; ++i)
-    {
-        /* Lock is not held */
-        string lockState = "Unlocked";
-
-        /* Chech Lock State */
-        for (int t = 0; t < shm->num_trains; ++t)
-        {
-            if (held[t * shm->num_intersections + i] == 1) /* find intersections held by train */
-            {
-                /* If train holds intersection set locked */
-                lockState = "Locked";
-                break;
-            }
-        }
-
-        /* Intersection data */
-        cout << left << setw(15) << inter_ptr[i].name /* name */
-             << setw(10) << inter_ptr[i].type         /* lock type */
-             << setw(10) << inter_ptr[i].capacity     /* inersection capacity */
-             << setw(12) << lockState                     /* Locked/Unlocked */
-             << "[";
-
-        bool one = true;
-
-        /* Loop for printing trains that hold lock on specific intersection */
-        for (int t = 0; t < shm->num_trains; ++t)
-        {
-            /* True value in held matrix */
-            if (held[t * shm->num_intersections + i] == 1)
-            {
-                if (!one) /* Multiple elements separate with comma */
-                    cout << ", ";
-                cout << "Train" << t; /* Trains Id */
-                one = false;
-            }
-        }
-
-        cout << "]" << endl;
-    }
-}
 
 // These should be global variables:
 // ofstream logFile;      // For logging
-int simulatedTime = 0; // For simulated time tracking
 
 
 
@@ -266,7 +279,8 @@ int main()
     
     // use calculated number of intersections for mutex and semaphore to provide size for shared memory
     void *ptr = mem.mem_setup(num_mutex, num_sem, sem_values, num_trains);
-    shared_mem_t *shm_ptr = (shared_mem_t *)ptr;
+    shm_ptr = reinterpret_cast<shared_mem_t*>(ptr); 
+
     signal(SIGINT, cleanUpOnFail);
     char *mem_struct = reinterpret_cast<char *>(ptr) + sizeof(shared_mem_t);
 
@@ -285,7 +299,7 @@ int main()
     
     // set the pointer to wait matrix
     int *waiting = reinterpret_cast<int *>(held + (num_trains * intersections.size()));
-
+        
     // setup intersection data in shared memory
     int count_sem = 0;
     int count_mutex = 0;
@@ -322,30 +336,33 @@ int main()
     }
 
     // Used to create resource allocation graph
-    printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
+    printIntersectionStatus1(shm_ptr); /* print resource allocation table*/
 
     logMessage("SERVER: Initialized intersections");
     cout << endl;
 
     // create child processes for each train and store their PIDs
     vector<pid_t> childPIDS = forkTrains(trains, requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // fork the number of trains
-    printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
+
+
     // run the server process
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
-        printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
+    
         
         detectAndResolveDeadlock(shm_ptr, intersections); // pass in shared memory pointer and vector of intersections
 
         processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex, waiting); // process train requests
+    
         for (auto &pid : childPIDS)
+
         { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);
         }
         cout << "All trains have finished." << endl;
         logMessage("All trains have finished.");
     }
-
+    
     // close logFile is the process is a child process
    /* else if (getpid() != serverPID)
     {

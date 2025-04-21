@@ -30,7 +30,8 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     int num_intersections = num_sem + num_mutex;
 
     // size of memory object in bytes
-    size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
+    size_t length = sizeof(shared_mem_t)
+    + (num_mutex * sizeof(pthread_mutex_t))
     + num_sem * sizeof(sem_t)
     + num_sem * sizeof(int)
     + num_trains * num_intersections * sizeof(int)
@@ -55,6 +56,7 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     mem->num_sem = num_sem;
     mem->num_trains = num_trains;
     mem->num_intersections = num_intersections;
+    mem->simulatedTime = 0; 
 
     char *mem_struct = reinterpret_cast<char *>(mem) + sizeof(shared_mem_t);
     int *sem_val_block = reinterpret_cast<int *>(mem_struct);

@@ -167,7 +167,10 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
             sem_wait(&sem[intersection->sem_index]);
 
             // add train ID to intersection in resource allocation table
+            pthread_mutex_lock(&shm->rat_mutex);
             held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+            pthread_mutex_unlock(&shm->rat_mutex);
+            // std::cout << "train " << trainID << " Intersection " << intersectionID << " " << held[trainIDNum * shm->num_intersections + intersection->index] << std::endl;
             waiting[trainIDNum * shm->num_intersections + intersection->index] = 0;
             locked = true;
         }
@@ -177,8 +180,10 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
             pthread_mutex_lock(&mutex[intersection->mutex_index]);
 
             // add train ID to intersection in resource allocation table
+            pthread_mutex_lock(&shm->rat_mutex);
             held[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
             waiting[trainIDNum * shm->num_intersections + intersection->index] = 0; // set waiting matrix to 0
+            pthread_mutex_unlock(&shm->rat_mutex);
             locked = true;
         }
 
@@ -222,8 +227,9 @@ bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem,
         }
 
         // remove train ID from intersection in resource allocation table and set to 0
+        pthread_mutex_lock(&shm->rat_mutex);
         held[trainIDNum * shm->num_intersections + intersection->index] = 0; // set held matrix to 0
-
+        pthread_mutex_unlock(&shm->rat_mutex);
     }
     
     // check intersection type

@@ -36,13 +36,19 @@
 // extern std::ofstream logFile;
 
 // We define this in main.cpp (so only one definition in the whole project):
-extern int simulatedTime; 
+extern shared_mem_t *shm_ptr; // Pointer to shared memory
 
 // Function to get formatted timestamp
 std::string getTimestamp() {
-    int hours = simulatedTime / 3600;
-    int minutes = (simulatedTime % 3600) / 60;
-    int seconds = simulatedTime % 60;
+
+    int time;
+    pthread_mutex_lock(&shm_ptr->rat_mutex);
+    time = shm_ptr->simulatedTime; // Get the simulated time from shared memory
+    pthread_mutex_unlock(&shm_ptr->rat_mutex);
+
+    int hours = time / 3600;
+    int minutes = (time % 3600) / 60;
+    int seconds = time % 60;
     
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(2) << hours << ":"
@@ -250,7 +256,9 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
                 // If WAIT, log and continue waiting
                 sendLogMessage(logQueue, std::string(trainId) + ": Waiting for " + intersection + "...");
                 sleep(1);
-                simulatedTime++; // Update simulated time
+                pthread_mutex_lock(&shm_ptr->rat_mutex); // Lock mutex
+                shm_ptr->simulatedTime++; // Update simulated time
+                pthread_mutex_unlock(&shm_ptr->rat_mutex); // Unlock mutex
             }
             else if (response == ResponseType::DENY) {
                 // If DENY, log and exit
@@ -264,20 +272,28 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
             }
 
         }
-        
         // Intersection granted, simulate train crossing
         sendLogMessage(logQueue, std::string(trainId) + ": Acquired " + intersection + ". Proceeding...");
         
-        // Simulate time to cross the intersection (2-5 seconds)
+        
+
+
+
         int crossingTime = 2 + (rand() % 4);
         sleep(crossingTime);
-        simulatedTime += crossingTime; // Update simulated time
+    
         
+        // Simulate time to cross the intersection (2-5 seconds)
+        /*int crossingTime = 2 + (rand() % 4);
+        sleep(crossingTime);
+        simulatedTime += crossingTime; // Update simulated time
+        */
         // Release the intersection
         if (!trainSendReleaseRequestExtended(requestQueue, logQueue, trainId, tempIntersection, shm, inter_ptr, sem, mutex, held)) {
             std::cerr << "Train " << trainId << " failed to send RELEASE request." << std::endl;
             return;
         }
+  
     }
     
     sendLogMessage(logQueue, std::string(trainId) + ": Completed route.");
@@ -309,7 +325,11 @@ bool serverReceiveRequest(int requestQueue, char* trainId, char* intersectionId,
     intersectionId[sizeof(req.intersection_id) - 1] = '\0';
     requestType = req.mtype;
     
-    simulatedTime++; // Update simulated time
+    pthread_mutex_lock(&shm_ptr->rat_mutex);
+    shm_ptr->simulatedTime++;
+    pthread_mutex_unlock(&shm_ptr->rat_mutex);
+
+    // Update simulated time
     return true;
 }
 
@@ -363,7 +383,10 @@ bool serverSendResponse(int responseQueue, int logQueue, const char* trainId,
         sendLogMessage(logQueue, std::string("SERVER: ") + intersectionId + " is busy. " + trainId + " added to wait queue.");
     }
     
-    simulatedTime++;
+    pthread_mutex_lock(&shm_ptr->rat_mutex);
+    shm_ptr->simulatedTime++;
+    pthread_mutex_unlock(&shm_ptr->rat_mutex);
+
     return true;
 }
 
@@ -431,6 +454,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
         else {
             std::cerr << "Unknown request type: " << reqType << std::endl;
         }
+        waitQueueProcessed = true;
 
         
         }
