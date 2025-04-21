@@ -212,7 +212,7 @@ int main()
 
     char fileName[] = "data/simulation.log";
 
-    int fd = open(fileName, O_WRONLY | O_CREAT, 0666);
+    int fd = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1)
     {
         cerr << "Main [ERROR]: Failed to open " << fileName << " for writing." << endl;

@@ -30,7 +30,7 @@ typedef struct {
 
 class shared_Mem { 
 public:
-    const char *name = "/sharedMemory3"; // Name for the shared memory object
+    const char *name = "/sharedMemoryCosette"; // Name for the shared memory object
     void* mem_setup(int num_mutex, int num_sem,  const int sem_values[], int num_trains);
     void mem_close(void* ptr);
 };
