@@ -282,6 +282,9 @@ int main()
     // set pointer to *held matrix
     int *held = reinterpret_cast<int *>(
         reinterpret_cast<char *>(inter_ptr) + (intersections.size()) * sizeof(Intersection));
+    
+    // set the pointer to wait matrix
+    int *waiting = reinterpret_cast<int *>(held + (num_trains * num_intersections));
 
     // setup intersection data in shared memory
     int count_sem = 0;
@@ -321,8 +324,6 @@ int main()
     // Used to create resource allocation graph
     printIntersectionStatus(shm_ptr, inter_ptr, held); /* print resource allocation table*/
 
-    detectAndResolveDeadlock(static_cast<shared_mem_t *>(ptr), intersections); // pass in shared memory pointer and vector of intersections
-
     logMessage("SERVER: Initialized intersections");
     cout << endl;
 
@@ -333,6 +334,8 @@ int main()
     if (getpid() == serverPID)
     { // if the process is the parent process, run the server side
     
+        detectAndResolveDeadlock(shm_ptr, intersections); // pass in shared memory pointer and vector of intersections
+
         processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
         for (auto &pid : childPIDS)
         { // wait for the child processes to finish

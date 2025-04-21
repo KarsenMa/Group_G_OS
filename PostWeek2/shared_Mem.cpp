@@ -30,13 +30,12 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     int num_intersections = num_sem + num_mutex;
 
     // size of memory object in bytes
-    size_t length = sizeof(shared_mem_t) 
-        + (num_mutex * sizeof(pthread_mutex_t))
-        + (num_sem * sizeof(sem_t))
-        +(num_sem * sizeof(int))
-        + ((num_trains * num_intersections) * sizeof(int))
-        + (num_intersections * sizeof(Intersection)); // size of shared memory object
-
+    size_t length = sizeof(shared_mem_t) + (num_mutex * sizeof(pthread_mutex_t))
+    + num_sem * sizeof(sem_t)
+    + num_sem * sizeof(int)
+    + num_trains * num_intersections * sizeof(int)
+    + num_intersections * sizeof(Intersection)
+    + num_trains * num_intersections * sizeof(int);
     void *mem_ptr; // pointer to memory object
 
     int shm_fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, 0666); // creates memory object, set to read and write
@@ -94,6 +93,10 @@ void *shared_Mem::mem_setup(int num_mutex, int num_sem, const int sem_values[], 
     int *held = reinterpret_cast<int *>(intersection + num_intersections);
     // Initialize held matrix to 0
         memset(held, 0, num_trains * num_intersections * sizeof(int));
+
+    int *waiting = reinterpret_cast<int *>(held + (num_trains * num_intersections));
+    // Initialize waiting matrix to 0
+    memset(waiting, 0, num_trains * num_intersections * sizeof(int));
     
     return mem_ptr;
 }
@@ -119,7 +122,7 @@ void shared_Mem::mem_close(void *ptr)
     sem_t *semaphore = reinterpret_cast<sem_t *>(mutex + num_mutex);
     Intersection *intersection = reinterpret_cast<Intersection *>(semaphore + num_sem);
     int *held = reinterpret_cast<int *>(intersection + num_intersections);
-   
+    int *waiting = reinterpret_cast<int *>(held + (num_trains * num_intersections));
 
 
     // calculate length of memory to unlink
@@ -127,7 +130,8 @@ void shared_Mem::mem_close(void *ptr)
     + num_sem * sizeof(sem_t)
     + num_sem * sizeof(int)
     + num_trains * num_intersections * sizeof(int)
-    + num_intersections * sizeof(Intersection);    
+    + num_intersections * sizeof(Intersection)
+    + num_trains * num_intersections * sizeof(int);
     
     // destroy the mutex objects
     
