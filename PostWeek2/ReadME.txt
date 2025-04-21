@@ -36,6 +36,7 @@ Files written by
 Clayton: 
 - TrainCommunication.cpp
 - DeadlockDetection.cpp
+- DeadlockDetection.h
 
 Cosette: 
 - shared_Mem.cpp
@@ -50,6 +51,7 @@ Damian:
 - MutexThread.h
 - IPCSemaphore.cpp
 - IPCSemaphore.h
+- TrainCommunication.h
 
 Eric: 
 - trainFiles.cpp
