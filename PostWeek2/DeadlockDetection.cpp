@@ -1,6 +1,6 @@
 /*
   Group: G
-  Author: Clayton Nunle
+  Author: Clayton Nunley
   Email: clayton.nunley@okstate.edu
   Date: 04-12-2025
  

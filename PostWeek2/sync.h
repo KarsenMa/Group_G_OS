@@ -31,6 +31,8 @@ bool checkIntersectionFull(shared_mem_t *shm, Intersection *inter_ptr, const cha
 
 bool checkIntersectionLockbyTrain(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *held);
 
+bool addtoWaitMatrix(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *waiting);
+
 bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held);
 
 bool releaseIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pthread_mutex_t *mutex, const char* intersectionID, const char* trainID, int *held);

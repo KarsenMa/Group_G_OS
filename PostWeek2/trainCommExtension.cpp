@@ -61,6 +61,7 @@ bool serverReceiveLog(int logQueue, char* log) {
     strncpy(log, logMsg.message, sizeof(logMsg.message) - 1);
     log[sizeof(logMsg.message) - 1] = '\0';
     
+    logMessage(logMsg.message); 
     return true;
 }
 
@@ -70,7 +71,7 @@ bool serverReceiveLog(int logQueue, char* log) {
 *  this function takes the waitQueue, the train ID and the intersection ID as input.
 *  it returns a bool that indicates if the message was sent. 
 */
-bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId) {
+bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId, shared_mem_t *shm, Intersection *inter_ptr, int *waiting) {
     WaitQueueMsg waitMsg;
 
     std::string tempID = std::string(trainId);
@@ -83,6 +84,9 @@ bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersection
 
     strncpy(waitMsg.intersection_id, intersectionId, sizeof(waitMsg.intersection_id) - 1);  
     waitMsg.intersection_id[sizeof(waitMsg.intersection_id) - 1] = '\0';
+
+    // TO DO: add train to wait matrix
+    addtoWaitMatrix(shm, inter_ptr, waitMsg.train_id, waitMsg.intersection_id, waiting);
 
     // send the wait message to the wait queue
     if(msgsnd(waitQueue, &waitMsg, sizeof(waitMsg) - sizeof(long), 0) == -1) {

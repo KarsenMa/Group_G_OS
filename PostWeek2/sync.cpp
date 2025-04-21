@@ -53,6 +53,36 @@ string checkIntersectionType(const char* intersectionID, Intersection *inter_ptr
     return type;
 }
 
+/* addtoWaitMatrix adds a train at a given intersection to the wait matrix
+* input: shared memory pointer, intersection pointer, intersection ID, train ID, waiting matrix pointer
+* output: returns true if the train was added to the wait matrix, false otherwise
+*/
+bool addtoWaitMatrix(shared_mem_t *shm, Intersection *inter_ptr, const char* intersectionID, const char* trainID, int *waiting){
+    bool added = false;
+    int trainIDNum = stoi(string(trainID).substr(5)); // convert string to integer
+
+    // get intersection in shared memory
+    Intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
+    
+    // check if intersection is locked in shared memory
+    int held_num = waiting[trainIDNum * shm->num_intersections + intersection->index];
+    if(held_num == 0){
+        // if the intersection is 0 in the held matrix it is not locked
+        waiting[trainIDNum * shm->num_intersections + intersection->index] = 1; // set held matrix to 1
+        added = true;
+    }
+    
+    else if(held_num == 1){
+        // the intersection is already held by this train
+        added = false;
+    }
+    else{ 
+        cerr << "[ERROR]: Held matrix error at " << trainID << " " << intersectionID << "\nHeld Num: " << held_num << endl;
+    }
+
+    return added;
+}
+
 /*
 * intersectionOpen takes intersection ID reference as input performs 
 * checks to see if intersection is open without changing lock status
@@ -125,16 +155,10 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
     int trainIDNum = stoi(string(trainID).substr(5)); // convert string to integer
 
     Intersection *intersection = findIntersectionbyID(intersectionID, inter_ptr, shm->num_intersections);
-    locked = (checkIntersectionLockbyTrain(shm, inter_ptr, intersectionID, trainID, held) || checkIntersectionFull(shm, inter_ptr, intersectionID, held)); // check if intersection is locked or full
     
-    // check if intersection is locked (the intersection is full)
-    if(locked){
-        cerr << "lockIntersection: intersection is already locked or full" << endl;
-        // does this need to help with wait queue?
-    }
 
     // if intersection is unlocked check the type
-    else{
+    
         string type = checkIntersectionType(intersectionID, inter_ptr, shm->num_intersections);
         // lock the intersection based on the lock type
 
@@ -160,7 +184,7 @@ bool lockIntersection(shared_mem_t *shm, Intersection *inter_ptr, sem_t *sem, pt
             cerr << "lockIntersection [ERROR]: " << intersectionID << " invalid intersection type." << endl;
         }
 
-    }
+    
 
     return locked;
 }

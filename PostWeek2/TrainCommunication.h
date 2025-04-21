@@ -66,7 +66,7 @@ void simulateTrainMovement(const char* trainId, const std::vector<std::string>& 
 // Server side
 bool serverReceiveRequest(int requestQueue, const char* trainId, const char* intersectionId, int& requestType);
 bool serverSendResponse(int responseQueue, int logQueue, const char* trainId, const char* intersectionId, int responseType);
-void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex);
+void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm, Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex, int *waiting);
 
 // Logging side
 bool sendLogMessage(int logQueue, const std::string& message); // log messages

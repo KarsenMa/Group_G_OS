@@ -284,7 +284,7 @@ int main()
         reinterpret_cast<char *>(inter_ptr) + (intersections.size()) * sizeof(Intersection));
     
     // set the pointer to wait matrix
-    int *waiting = reinterpret_cast<int *>(held + (num_trains * num_intersections));
+    int *waiting = reinterpret_cast<int *>(held + (num_trains * intersections.size()));
 
     // setup intersection data in shared memory
     int count_sem = 0;
@@ -336,7 +336,7 @@ int main()
     
         detectAndResolveDeadlock(shm_ptr, intersections); // pass in shared memory pointer and vector of intersections
 
-        processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex); // process train requests
+        processTrainRequests(requestQueue, responseQueue, logQueue, waitQueue, shm_ptr, inter_ptr, held, semaphore, mutex, waiting); // process train requests
         for (auto &pid : childPIDS)
         { // wait for the child processes to finish
             waitpid(pid, nullptr, 0);

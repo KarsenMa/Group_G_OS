@@ -369,7 +369,7 @@ bool serverSendResponse(int responseQueue, int logQueue, const char* trainId,
 
 // function to handle train requests (acquire or release or deny access to intersection)
 void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int waitQueue, shared_mem_t *shm, 
-    Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex) {
+    Intersection *inter_ptr, int *held, sem_t *sem, pthread_mutex_t *mutex, int *waiting) {
     char trainId[16];
     char intersectionId[32];
     int reqType;
@@ -392,7 +392,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
                 
             }
             else{
-                addToWaitQueue(waitQueue, trainId, intersectionId);
+                addToWaitQueue(waitQueue, trainId, intersectionId, shm, inter_ptr, waiting);
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::WAIT);
                 break;
             }
@@ -413,7 +413,7 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
 
             }
             else{
-                addToWaitQueue(waitQueue, trainId, intersectionId);
+                addToWaitQueue(waitQueue, trainId, intersectionId, shm, inter_ptr, waiting);
                 serverSendResponse(responseQueue, logQueue, trainId, intersectionId, ResponseType::WAIT);
             }
         }
@@ -434,10 +434,9 @@ void processTrainRequests(int requestQueue, int responseQueue, int logQueue, int
 
         
         }
+        
         // take log message from queue and send to log file
-        if(serverReceiveLog(logQueue, log)){
-            logMessage(log);
-        }
+        serverReceiveLog(logQueue, log);
         
 
     }

@@ -34,7 +34,7 @@ bool trainSendDoneMsg(int requestQueue, const char* trainId);
 
 bool serverReceiveLog(int logQueue, char* log);
 
-bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId);
+bool addToWaitQueue(int waitQueue, const char* trainId, const char* intersectionId, shared_mem_t *shm, Intersection *inter_ptr, int *waiting);
 
 bool processWaitQueue(int waitQueue,  char* trainId, char* intersectionId);
 
